@@ -1,0 +1,3976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Real Avid — Analytics Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ─── Tokens ──────────────────────────────── */
+    :root {
+      --black:    #0d0e0f;
+      --dark:     #151719;
+      --panel:    #1c1f22;
+      --border:   #2a2e33;
+      --mid:      #3a3f47;
+      --muted:    #6b7280;
+      --light:    #9ca3af;
+      --white:    #f0f1f2;
+      /* Brand accent (swapped on brand change) */
+      --accent:   #E7131A;
+      --accent2:  #b80f14;
+      /* Real Avid palette */
+      --ra-red:   #E7131A;
+      --ra-red2:  #b80f14;
+      --ra-teal:  #108474;
+      --ra-teal2: #0d6b5e;
+      --ra-gold:  #FBCD0A;
+      /* Utility */
+      --green:    #2ecc71;
+      --red-err:  #e74c3c;
+      --blue:     #3498db;
+      --purple:   #9b59b6;
+
+      --font-display: 'Barlow Condensed', sans-serif;
+      --font-body:    'Barlow', sans-serif;
+      --font-ui:      'Barlow Semi Condensed', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--black);
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ─── Header ─────────────────────────────── */
+    header {
+      background: var(--dark);
+      border-bottom: 2px solid var(--accent);
+      padding: 10px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-row { display: flex; align-items: center; justify-content: space-between; }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .logo {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+    .logo span { color: var(--accent); }
+    .brand-sep { width: 1px; height: 24px; background: var(--border); }
+    .brand-label {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    /* ─── Brand switcher ─────────────────────── */
+    .brand-switcher { display: flex; gap: 2px; background: var(--panel); border-radius: 6px; padding: 3px; }
+    .brand-sw-tab {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .brand-sw-tab:hover { color: var(--white); }
+    .brand-sw-tab.active { background: var(--accent); color: var(--white); }
+
+    /* ─── Range tabs ──────────────────────────── */
+    .range-tabs { display: flex; flex-wrap: wrap; gap: 2px; background: var(--panel); border-radius: 6px; padding: 3px; }
+    .range-tab {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .range-tab:hover { color: var(--white); }
+    .range-tab.active { background: var(--accent); color: var(--white); }
+
+    /* ─── Compare tabs ────────────────────────── */
+    .compare-wrap { display: flex; align-items: center; gap: 8px; }
+    .compare-label {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .compare-tabs { display: flex; gap: 2px; background: var(--panel); border-radius: 6px; padding: 3px; }
+    .compare-tab {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .compare-tab:hover { color: var(--white); }
+    .compare-tab.active { background: var(--ra-teal); color: var(--white); }
+
+    /* ─── Custom date ─────────────────────────── */
+    .custom-date-wrap { display: none; align-items: center; gap: 6px; }
+    .custom-date-wrap.visible { display: flex; }
+    .date-input {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 12px;
+      padding: 5px 8px;
+      cursor: pointer;
+      outline: none;
+    }
+    .date-input:focus { border-color: var(--accent); }
+    .date-input::-webkit-calendar-picker-indicator { filter: invert(0.6); cursor: pointer; }
+    .date-sep { color: var(--muted); font-size: 13px; }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted); transition: background 0.3s;
+    }
+    .status-dot.ok    { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.error { background: var(--red-err); }
+
+    .include-today-label {
+      display: flex; align-items: center; gap: 5px;
+      color: var(--muted); font-size: 12px; font-family: var(--font-ui);
+      cursor: pointer; white-space: nowrap; user-select: none;
+    }
+    .include-today-label:hover { color: var(--light); }
+    .include-today-label input[type="checkbox"] { accent-color: var(--accent); cursor: pointer; width: 13px; height: 13px; }
+    .refresh-btn {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--light);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ─── Nav ─────────────────────────────────── */
+    .nav-tabs {
+      background: var(--dark);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+    }
+    .nav-tab {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 12px 20px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+    .nav-tab:hover { color: var(--light); }
+    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    main { flex: 1; padding: 24px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .section-label {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 20px 0 16px;
+    }
+
+    /* ─── KPI Grid ───────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .kpi-card:hover::before { opacity: 1; }
+    .kpi-label {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .kpi-value {
+      font-family: var(--font-display);
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1;
+      letter-spacing: -0.01em;
+    }
+    .kpi-value.loading {
+      background: var(--border);
+      border-radius: 4px;
+      color: transparent;
+      animation: pulse 1.5s ease-in-out infinite;
+      min-width: 80px;
+    }
+    .kpi-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .kpi-delta {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      margin-top: 5px;
+      min-height: 16px;
+    }
+    .kpi-delta.pos { color: var(--green); }
+    .kpi-delta.neg { color: var(--red-err); }
+
+    /* ─── Panels ─────────────────────────────── */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .panel-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+    .panel-badge {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--mid);
+      color: var(--muted);
+    }
+
+    /* ─── Chart containers ────────────────────── */
+    .chart-container { position: relative; height: 220px; }
+
+    .metric-charts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 960px) { .metric-charts-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 580px) { .metric-charts-grid { grid-template-columns: 1fr; } }
+    .chart-mini { position: relative; height: 150px; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; } }
+
+    .chart-flow { position: relative; height: 200px; }
+
+    .table-scroll { overflow-x: auto; }
+
+    /* ─── Tables ─────────────────────────────── */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--light);
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .data-table tfoot td {
+      border-top: 1px solid var(--mid);
+      border-bottom: none;
+      background: rgba(255,255,255,0.03);
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--light);
+      padding: 10px 12px;
+    }
+
+    /* ─── Badges ─────────────────────────────── */
+    .badge {
+      display: inline-block;
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 3px;
+    }
+    .badge-paid        { background: rgba(46,204,113,0.15);   color: #2ecc71; }
+    .badge-pending     { background: rgba(251,205,10,0.15);   color: #FBCD0A; }
+    .badge-refunded    { background: rgba(231,76,60,0.15);    color: #e74c3c; }
+    .badge-fulfilled   { background: rgba(52,152,219,0.15);   color: #3498db; }
+    .badge-unfulfilled { background: rgba(155,89,182,0.15);   color: #9b59b6; }
+    .badge-active      { background: rgba(46,204,113,0.15);   color: #2ecc71; }
+    .badge-draft       { background: rgba(107,114,128,0.15);  color: #6b7280; }
+    .badge-sent        { background: rgba(16,132,116,0.15);   color: #108474; }
+
+    /* ─── Rev bar ────────────────────────────── */
+    .rev-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .rev-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .rev-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.6s ease; }
+
+    /* ─── Misc ───────────────────────────────── */
+    .error-msg {
+      color: var(--red-err);
+      font-size: 12px;
+      padding: 12px;
+      background: rgba(231,76,60,0.08);
+      border: 1px solid rgba(231,76,60,0.2);
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    .empty-msg { color: var(--muted); font-size: 13px; text-align: center; padding: 32px; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    #conn-banner {
+      background: rgba(231,76,60,0.1);
+      border-bottom: 1px solid rgba(231,76,60,0.3);
+      padding: 10px 24px;
+      font-size: 13px;
+      color: var(--red-err);
+      display: none;
+    }
+    #conn-banner.visible { display: block; }
+
+    .email-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 800px) { .email-stats-grid { grid-template-columns: repeat(2,1fr); } }
+
+    /* ─── Chart modal ───────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--dark);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 100%;
+      max-width: 900px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .modal-close:hover { color: var(--white); background: var(--mid); }
+    .modal-body { overflow-y: auto; flex: 1; }
+    .modal-chart-wrap { padding: 20px; position: relative; height: 360px; flex-shrink: 0; }
+    .modal-table-wrap { padding: 0 20px 20px; }
+    .modal-table-wrap .section-label { margin-bottom: 10px; }
+    .clickable-panel { cursor: pointer; }
+    .clickable-panel:hover { border-color: var(--mid); }
+
+    .compare-active-badge {
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 3px;
+      background: rgba(16,132,116,0.15);
+      color: var(--ra-teal);
+      margin-left: 8px;
+    }
+
+    /* ─── Panel chart stats ──────────────────── */
+    .panel-stats { display: flex; gap: 14px; align-items: center; }
+    .ps-item { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+    .ps-val {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+    }
+    .ps-lbl {
+      font-family: var(--font-display);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      line-height: 1;
+    }
+    .ps-sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+
+    /* ─── Modal stats bar ────────────────────── */
+    .modal-stats {
+      display: flex;
+      gap: 28px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      flex-wrap: wrap;
+    }
+    .modal-stat-item { display: flex; flex-direction: column; gap: 2px; }
+    .modal-stat-val {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.01em;
+      line-height: 1;
+    }
+    .modal-stat-lbl {
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ─── Insights ──────────────────────────── */
+    .tab-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 12px;
+    }
+    .tab-toolbar .section-label { margin-bottom: 0; flex: 1; }
+    .insights-btn {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .insights-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .insights-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .insights-panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--light);
+    }
+    .insights-panel.visible { display: block; }
+    .insights-panel p { margin: 0 0 10px; }
+    .insights-panel p:last-child { margin-bottom: 0; }
+    .insights-panel .ih {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 12px 0 5px;
+    }
+    .insights-panel .ih:first-child { margin-top: 0; }
+    .insights-panel .il { margin: 0 0 10px 16px; padding: 0; list-style: disc; }
+    .insights-panel .il li { margin-bottom: 3px; }
+    .insights-panel strong { color: var(--white); font-weight: 600; }
+    .insights-panel em { color: var(--light); font-style: italic; }
+    .insights-loading { color: var(--muted); font-style: italic; }
+    .modal-insights-wrap { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+
+    /* ─── Dev Feedback panel ───────── */
+    .dev-feedback-wrap { margin-top: 32px; border-top: 1px dashed rgba(139,92,246,0.35); padding-top: 18px; }
+    .dev-feedback-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .dev-feedback-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8b5cf6; opacity: 0.75; }
+    .dev-feedback-panel { font-size: 13px; color: var(--light); line-height: 1.65; }
+    .dev-feedback-panel p { margin: 0 0 8px; }
+    .dev-feedback-panel ol { margin: 0 0 8px 18px; padding: 0; }
+    .dev-feedback-panel li { margin-bottom: 6px; }
+    .dev-feedback-panel strong { color: #c4b5fd; font-weight: 600; }
+    .dev-feedback-btn { font-size: 11px; padding: 3px 10px; background: transparent; border: 1px solid rgba(139,92,246,0.4); color: #8b5cf6; border-radius: 4px; cursor: pointer; }
+    .dev-feedback-btn:hover { border-color: #8b5cf6; color: #c4b5fd; }
+    .dev-feedback-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ─── Insight inline reply thread ───────── */
+    .ir-thread { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(42,46,51,0.7); }
+    .ir-user { font-size: 12px; color: var(--muted); font-style: italic; padding: 0 2px; }
+    .ir-you { color: var(--accent); font-style: normal; font-weight: 600; margin-right: 4px; }
+    .ir-reply { font-size: 12px; color: var(--light); border-left: 2px solid var(--accent); padding: 4px 0 4px 10px; opacity: 0.9; }
+    .ir-reply p { margin: 0 0 4px; }
+    .ir-reply p:last-child { margin: 0; }
+    .ir-reply ul { margin: 3px 0 4px 14px; }
+    .ir-reply strong { color: var(--white); }
+    .ir-input-row { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
+    .ir-input {
+      flex: 1;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 12px;
+      padding: 5px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .ir-input:focus { border-color: var(--accent); }
+    .ir-input::placeholder { color: var(--mid); }
+    .ir-input:disabled { opacity: 0.4; }
+    .ir-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 4px 11px;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .ir-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .ir-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ─── Chat Modal ─────────────────────────── */
+    .chat-modal-box {
+      background: var(--dark);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 700px;
+      max-width: 96vw;
+      height: 72vh;
+      max-height: 640px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .chat-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--white);
+      line-height: 1.2;
+    }
+    .chat-subtitle {
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    .chat-header-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .chat-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 8px;
+      text-align: center;
+    }
+    .chat-empty-icon { font-size: 26px; opacity: 0.25; }
+    .chat-empty-text { color: var(--muted); font-size: 13px; }
+    .chat-empty-hint { color: var(--mid); font-size: 11px; }
+    .chat-msg { display: flex; flex-direction: column; }
+    .chat-msg.user { align-items: flex-end; }
+    .chat-msg.assistant { align-items: flex-start; }
+    .chat-bubble {
+      max-width: 88%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.55;
+      word-break: break-word;
+    }
+    .chat-msg.user .chat-bubble {
+      background: var(--accent);
+      color: var(--white);
+      border-bottom-right-radius: 4px;
+    }
+    .chat-msg.assistant .chat-bubble {
+      background: var(--panel);
+      color: var(--light);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    .chat-msg.assistant .chat-bubble strong { color: var(--white); }
+    .chat-msg.assistant .chat-bubble p { margin: 0 0 6px; }
+    .chat-msg.assistant .chat-bubble p:last-child { margin: 0; }
+    .chat-msg.assistant .chat-bubble ul { margin: 4px 0 6px 16px; }
+    .chat-msg.assistant .chat-bubble h5 { color: var(--accent); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 4px; }
+    .chat-msg.thinking .chat-bubble { color: var(--muted); font-style: italic; }
+    .chat-input-wrap {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+    .chat-textarea {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--white);
+      font-family: var(--font-body);
+      font-size: 13px;
+      padding: 8px 12px;
+      resize: none;
+      line-height: 1.5;
+      min-height: 38px;
+      max-height: 110px;
+      overflow-y: auto;
+      field-sizing: content;
+    }
+    .chat-textarea:focus { outline: none; border-color: var(--accent); }
+    .chat-textarea::placeholder { color: var(--muted); }
+    .chat-send-btn {
+      background: var(--accent);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .chat-send-btn:hover:not(:disabled) { opacity: 0.85; }
+    .chat-send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ─── Ads upload bar ─────────────────────── */
+    .ads-upload-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .ads-upload-controls { display: flex; align-items: center; gap: 12px; }
+    .ads-data-info { font-size: 12px; color: var(--muted); font-family: var(--font-ui); }
+    .upload-btn {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 5px;
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-block;
+    }
+    .upload-btn:hover { background: var(--accent); color: var(--white); }
+    .upload-btn.uploading { opacity: 0.6; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="header-row">
+      <div class="header-left">
+        <div class="logo" id="brand-logo">Real<span>Avid</span></div>
+        <div class="brand-sep"></div>
+        <div class="brand-label">Analytics</div>
+        <div class="brand-sep"></div>
+        <div class="brand-switcher">
+          <button class="brand-sw-tab active" data-brand="ra">Real Avid</button>
+          <button class="brand-sw-tab" data-brand="wiq">Work IQ Tools</button>
+          <button class="brand-sw-tab" data-brand="oe">Outdoor Edge</button>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="range-tabs">
+          <button class="range-tab" data-days="7">7D</button>
+          <button class="range-tab" data-days="10">10D</button>
+          <button class="range-tab" data-days="14">14D</button>
+          <button class="range-tab active" data-days="30">30D</button>
+          <button class="range-tab" data-days="60">60D</button>
+          <button class="range-tab" data-days="90">90D</button>
+          <button class="range-tab" data-preset="week">This Wk</button>
+          <button class="range-tab" data-preset="month">This Mo</button>
+          <button class="range-tab" data-preset="last-month">Last Mo</button>
+          <button class="range-tab" data-preset="year">YTD</button>
+          <button class="range-tab" id="custom-tab" data-days="0">Custom</button>
+        </div>
+        <label class="include-today-label">
+          <input type="checkbox" id="include-today-cb"> Include today
+        </label>
+        <div class="custom-date-wrap" id="custom-date-wrap">
+          <input type="date" id="date-start" class="date-input" />
+          <span class="date-sep">–</span>
+          <input type="date" id="date-end" class="date-input" />
+          <button class="refresh-btn" onclick="applyCustomRange()">Apply</button>
+        </div>
+        <div class="status-dot" id="status-dot" title="Checking connection..."></div>
+        <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
+      </div>
+    </div>
+    <div class="header-row">
+      <div></div>
+      <div class="compare-wrap">
+        <span class="compare-label">Compare:</span>
+        <div class="compare-tabs">
+          <button class="compare-tab" data-compare="none">Off</button>
+          <button class="compare-tab" data-compare="period">vs. Prev Period</button>
+          <button class="compare-tab active" data-compare="year">vs. Last Year</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="conn-banner"></div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="overview">Overview</button>
+    <button class="nav-tab" data-tab="shopify">Shopify</button>
+    <button class="nav-tab" data-tab="klaviyo">Klaviyo</button>
+    <button class="nav-tab" data-tab="ads" id="nav-ads" style="display:none;">Meta Ads</button>
+  </div>
+
+  <main>
+
+    <!-- ── Overview Tab ── -->
+    <div class="tab-panel active" id="tab-overview">
+
+      <div class="tab-toolbar">
+        <div class="section-label" style="margin-bottom:0;">Performance — <span id="ov-range-label">Last 30 Days</span><span class="compare-active-badge" id="ov-compare-badge" style="display:none;"></span></div>
+        <div style="display:flex;gap:6px;">
+          <button class="insights-btn" id="insights-btn-overview" onclick="runInsights('overview')">✦ Insights</button>
+          <button class="insights-btn" onclick="openChatModal('overview')">◎ Questions</button>
+        </div>
+      </div>
+      <div class="insights-panel" id="insights-overview"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Net Sales</div>
+          <div class="kpi-value loading" id="ov-revenue">—</div>
+          <div class="kpi-delta" id="ov-revenue-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Orders</div>
+          <div class="kpi-value loading" id="ov-orders">—</div>
+          <div class="kpi-delta" id="ov-orders-delta"></div>
+          <div class="kpi-sub">paid orders</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Order Value</div>
+          <div class="kpi-value loading" id="ov-aov">—</div>
+          <div class="kpi-delta" id="ov-aov-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Campaign Revenue</div>
+          <div class="kpi-value loading" id="ov-lists">—</div>
+          <div class="kpi-delta" id="ov-lists-delta"></div>
+          <div class="kpi-sub">per campaign sent</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Recipients / Campaign</div>
+          <div class="kpi-value loading" id="ov-subs">—</div>
+          <div class="kpi-delta" id="ov-subs-delta"></div>
+          <div class="kpi-sub">per campaign sent</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Sessions</div>
+          <div class="kpi-value loading" id="ov-sessions">—</div>
+          <div class="kpi-delta" id="ov-sessions-delta"></div>
+          <div class="kpi-sub">GA4</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Conv. Rate</div>
+          <div class="kpi-value loading" id="ov-conv-rate">—</div>
+          <div class="kpi-delta" id="ov-conv-rate-delta"></div>
+          <div class="kpi-sub">orders / sessions</div>
+        </div>
+      </div>
+
+      <hr class="section-divider">
+      <div class="section-label">Shopify Daily Trends</div>
+      <div class="metric-charts-grid">
+        <div class="panel clickable-panel" onclick="openShopifyModal('sales')">
+          <div class="panel-header"><div class="panel-title">Net Sales</div></div>
+          <div class="chart-mini"><canvas id="ov-sh-chart-sales"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('orders')">
+          <div class="panel-header"><div class="panel-title">Orders</div></div>
+          <div class="chart-mini"><canvas id="ov-sh-chart-orders"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('aov')">
+          <div class="panel-header"><div class="panel-title">Avg Order Value</div></div>
+          <div class="chart-mini"><canvas id="ov-sh-chart-aov"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('newCustomers')">
+          <div class="panel-header"><div class="panel-title">New Customers</div></div>
+          <div class="chart-mini"><canvas id="ov-sh-chart-new-customers"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('returningRate')">
+          <div class="panel-header"><div class="panel-title">Returning Rate</div></div>
+          <div class="chart-mini"><canvas id="ov-sh-chart-returning-rate"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('checkoutConv')">
+          <div class="panel-header"><div class="panel-title">Checkout Completion %</div></div>
+          <div class="chart-mini"><canvas id="ov-sh-chart-checkout-conv"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('sessions')">
+          <div class="panel-header"><div class="panel-title">Sessions</div></div>
+          <div class="chart-mini"><canvas id="ov-sh-chart-sessions"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('convRate')">
+          <div class="panel-header"><div class="panel-title">Conv. Rate</div></div>
+          <div class="chart-mini"><canvas id="ov-sh-chart-conv-rate"></canvas></div>
+        </div>
+      </div>
+
+      <hr class="section-divider">
+      <div class="section-label">Email Marketing</div>
+      <div class="two-col">
+        <div class="panel clickable-panel" onclick="openCampaignModal()">
+          <div class="panel-header">
+            <div class="panel-title">Campaign Revenue</div>
+            <div class="panel-badge" id="ov-kl-camp-badge">—</div>
+          </div>
+          <div class="chart-container"><canvas id="ov-kl-campaign-chart"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Top Products</div>
+            <div class="panel-stats" id="ov-products-stats"></div>
+          </div>
+          <div id="top-products-mini"></div>
+        </div>
+      </div>
+
+      <div class="panel clickable-panel" style="margin-bottom:20px;" onclick="openFlowModal()">
+        <div class="panel-header">
+          <div class="panel-title">Flow Revenue</div>
+          <div class="panel-badge" id="ov-kl-flow-badge">—</div>
+        </div>
+        <div class="chart-flow"><canvas id="ov-kl-flow-chart"></canvas></div>
+      </div>
+
+      <!-- WIQ-only Meta Ads section -->
+      <div id="ov-ads-section" style="display:none;">
+        <hr class="section-divider">
+        <div class="section-label">Meta Ads Performance</div>
+        <div class="kpi-grid" style="margin-bottom:16px;">
+          <div class="kpi-card">
+            <div class="kpi-label">Ad Spend</div>
+            <div class="kpi-value loading" id="ov-ads-spend">—</div>
+            <div class="kpi-delta" id="ov-ads-spend-delta"></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Ad Revenue</div>
+            <div class="kpi-value loading" id="ov-ads-revenue">—</div>
+            <div class="kpi-delta" id="ov-ads-revenue-delta"></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Purchase ROAS</div>
+            <div class="kpi-value loading" id="ov-ads-roas">—</div>
+            <div class="kpi-delta" id="ov-ads-roas-delta"></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Cost / Purchase</div>
+            <div class="kpi-value loading" id="ov-ads-cpp">—</div>
+            <div class="kpi-delta" id="ov-ads-cpp-delta"></div>
+          </div>
+        </div>
+        <div class="metric-charts-grid">
+          <div class="panel clickable-panel" onclick="openAdsModal('spend')">
+            <div class="panel-header"><div class="panel-title">Daily Spend</div></div>
+            <div class="chart-mini"><canvas id="ov-ads-chart-spend"></canvas></div>
+          </div>
+          <div class="panel clickable-panel" onclick="openAdsModal('revenue')">
+            <div class="panel-header"><div class="panel-title">Ad Revenue</div></div>
+            <div class="chart-mini"><canvas id="ov-ads-chart-revenue"></canvas></div>
+          </div>
+          <div class="panel clickable-panel" onclick="openAdsModal('roas')">
+            <div class="panel-header"><div class="panel-title">Purchase ROAS</div></div>
+            <div class="chart-mini"><canvas id="ov-ads-chart-roas"></canvas></div>
+          </div>
+          <div class="panel clickable-panel" onclick="openAdsModal('purchases')">
+            <div class="panel-header"><div class="panel-title">Purchases</div></div>
+            <div class="chart-mini"><canvas id="ov-ads-chart-purchases"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dev-feedback-wrap">
+        <div class="dev-feedback-header">
+          <span class="dev-feedback-label">◈ Dev Notes</span>
+          <button class="dev-feedback-btn" id="df-btn-overview" onclick="runDevFeedback('overview')">Generate</button>
+        </div>
+        <div class="dev-feedback-panel" id="df-panel-overview"></div>
+      </div>
+
+    </div>
+
+    <!-- ── Shopify Tab ── -->
+    <div class="tab-panel" id="tab-shopify">
+
+      <div class="tab-toolbar">
+        <div class="section-label" style="margin-bottom:0;">Shopify — <span id="sh-range-label">Last 30 Days</span><span class="compare-active-badge" id="sh-compare-badge" style="display:none;"></span></div>
+        <div style="display:flex;gap:6px;">
+          <button class="insights-btn" id="insights-btn-shopify" onclick="runInsights('shopify')">✦ Insights</button>
+          <button class="insights-btn" onclick="openChatModal('shopify')">◎ Questions</button>
+        </div>
+      </div>
+      <div class="insights-panel" id="insights-shopify"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Net Sales</div>
+          <div class="kpi-value loading" id="sh-netsales">—</div>
+          <div class="kpi-delta" id="sh-netsales-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Orders</div>
+          <div class="kpi-value loading" id="sh-orders">—</div>
+          <div class="kpi-delta" id="sh-orders-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Order Value</div>
+          <div class="kpi-value loading" id="sh-aov">—</div>
+          <div class="kpi-delta" id="sh-aov-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">New Customers</div>
+          <div class="kpi-value loading" id="sh-new-customers">—</div>
+          <div class="kpi-delta" id="sh-new-customers-delta"></div>
+          <div class="kpi-sub">first-time buyers</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Returning Rate</div>
+          <div class="kpi-value loading" id="sh-returning-rate">—</div>
+          <div class="kpi-delta" id="sh-returning-rate-delta"></div>
+          <div class="kpi-sub">of orders</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Checkout Completion %</div>
+          <div class="kpi-value loading" id="sh-checkout-conv">—</div>
+          <div class="kpi-delta" id="sh-checkout-conv-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Sessions</div>
+          <div class="kpi-value loading" id="sh-sessions">—</div>
+          <div class="kpi-delta" id="sh-sessions-delta"></div>
+          <div class="kpi-sub">GA4</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Conv. Rate</div>
+          <div class="kpi-value loading" id="sh-conv-rate">—</div>
+          <div class="kpi-delta" id="sh-conv-rate-delta"></div>
+          <div class="kpi-sub">orders / sessions</div>
+        </div>
+      </div>
+
+      <div class="metric-charts-grid">
+        <div class="panel clickable-panel" onclick="openShopifyModal('sales')">
+          <div class="panel-header"><div class="panel-title">Net Sales</div></div>
+          <div class="chart-mini"><canvas id="sh-chart-sales"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('orders')">
+          <div class="panel-header"><div class="panel-title">Orders</div></div>
+          <div class="chart-mini"><canvas id="sh-chart-orders"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('aov')">
+          <div class="panel-header"><div class="panel-title">Avg Order Value</div></div>
+          <div class="chart-mini"><canvas id="sh-chart-aov"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('newCustomers')">
+          <div class="panel-header"><div class="panel-title">New Customers</div></div>
+          <div class="chart-mini"><canvas id="sh-chart-new-customers"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('returningRate')">
+          <div class="panel-header"><div class="panel-title">Returning Rate</div></div>
+          <div class="chart-mini"><canvas id="sh-chart-returning-rate"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('checkoutConv')">
+          <div class="panel-header"><div class="panel-title">Checkout Completion %</div></div>
+          <div class="chart-mini"><canvas id="sh-chart-checkout-conv"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('sessions')">
+          <div class="panel-header"><div class="panel-title">Sessions</div></div>
+          <div class="chart-mini"><canvas id="sh-chart-sessions"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('convRate')">
+          <div class="panel-header"><div class="panel-title">Conv. Rate</div></div>
+          <div class="chart-mini"><canvas id="sh-chart-conv-rate"></canvas></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:4px;">
+        <div class="panel-header">
+          <div class="panel-title">Top Products</div>
+          <div class="panel-stats" id="sh-products-stats"></div>
+        </div>
+        <div class="table-scroll" id="sh-products-table"></div>
+      </div>
+
+      <div class="dev-feedback-wrap">
+        <div class="dev-feedback-header">
+          <span class="dev-feedback-label">◈ Dev Notes</span>
+          <button class="dev-feedback-btn" id="df-btn-shopify" onclick="runDevFeedback('shopify')">Generate</button>
+        </div>
+        <div class="dev-feedback-panel" id="df-panel-shopify"></div>
+      </div>
+
+    </div>
+
+    <!-- ── Klaviyo Tab ── -->
+    <div class="tab-panel" id="tab-klaviyo">
+
+      <div class="tab-toolbar">
+        <div class="section-label" style="margin-bottom:0;">Klaviyo — <span id="kl-range-label">Last 30 Days</span><span class="compare-active-badge" id="kl-compare-badge" style="display:none;"></span></div>
+        <div style="display:flex;gap:6px;">
+          <button class="insights-btn" id="insights-btn-klaviyo" onclick="runInsights('klaviyo')">✦ Insights</button>
+          <button class="insights-btn" onclick="openChatModal('klaviyo')">◎ Questions</button>
+        </div>
+      </div>
+      <div class="insights-panel" id="insights-klaviyo"></div>
+
+      <div class="email-stats-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Recipients / Campaign</div>
+          <div class="kpi-value loading" id="kl-avg-recipients">—</div>
+          <div class="kpi-delta" id="kl-avg-recipients-delta"></div>
+          <div class="kpi-sub" id="kl-avg-recipients-sub">for period</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Campaigns Sent</div>
+          <div class="kpi-value loading" id="kl-campaigns">—</div>
+          <div class="kpi-delta" id="kl-campaigns-delta"></div>
+          <div class="kpi-sub">in period</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Active Flows</div>
+          <div class="kpi-value loading" id="kl-flows">—</div>
+          <div class="kpi-sub">live flows</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Email Revenue</div>
+          <div class="kpi-value loading" id="kl-revenue">—</div>
+          <div class="kpi-delta" id="kl-revenue-delta"></div>
+          <div class="kpi-sub">attributed</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <div class="panel-title">Sent Campaigns</div>
+          <div class="panel-badge" id="kl-camp-badge">—</div>
+        </div>
+        <div class="table-scroll" id="kl-campaigns-table"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Active Flows — Revenue</div>
+          <div class="panel-badge" id="kl-flow-badge">—</div>
+        </div>
+        <div class="table-scroll" id="kl-flow-rows"></div>
+      </div>
+
+      <div class="dev-feedback-wrap">
+        <div class="dev-feedback-header">
+          <span class="dev-feedback-label">◈ Dev Notes</span>
+          <button class="dev-feedback-btn" id="df-btn-klaviyo" onclick="runDevFeedback('klaviyo')">Generate</button>
+        </div>
+        <div class="dev-feedback-panel" id="df-panel-klaviyo"></div>
+      </div>
+
+    </div>
+
+    <!-- ── Meta Ads Tab ── -->
+    <div class="tab-panel" id="tab-ads">
+
+      <div class="ads-upload-bar">
+        <div class="section-label" style="margin-bottom:0;">Meta Ads — <span id="ads-range-label">Work IQ Tools</span><span class="compare-active-badge" id="ads-compare-badge" style="display:none;"></span></div>
+        <div class="ads-upload-controls">
+          <span class="ads-data-info" id="ads-data-info">No data loaded</span>
+          <button class="insights-btn" id="insights-btn-ads" onclick="runInsights('ads')">✦ Insights</button>
+          <button class="insights-btn" onclick="openChatModal('ads')">◎ Questions</button>
+          <label class="upload-btn" id="ads-upload-label">
+            ↑ Upload CSV
+            <input type="file" id="ads-csv-input" accept=".csv" style="display:none;" onchange="uploadAdsCsv(this)">
+          </label>
+        </div>
+      </div>
+      <div class="insights-panel" id="insights-ads"></div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Spend</div>
+          <div class="kpi-value loading" id="ads-spend">—</div>
+          <div class="kpi-delta" id="ads-spend-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Revenue</div>
+          <div class="kpi-value loading" id="ads-revenue">—</div>
+          <div class="kpi-delta" id="ads-revenue-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Purchase ROAS</div>
+          <div class="kpi-value loading" id="ads-roas">—</div>
+          <div class="kpi-delta" id="ads-roas-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Purchases</div>
+          <div class="kpi-value loading" id="ads-purchases">—</div>
+          <div class="kpi-delta" id="ads-purchases-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Clicks</div>
+          <div class="kpi-value loading" id="ads-clicks">—</div>
+          <div class="kpi-delta" id="ads-clicks-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg CPC</div>
+          <div class="kpi-value loading" id="ads-cpc">—</div>
+          <div class="kpi-delta" id="ads-cpc-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Impressions</div>
+          <div class="kpi-value loading" id="ads-impressions">—</div>
+          <div class="kpi-delta" id="ads-impressions-delta"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Cost / Purchase</div>
+          <div class="kpi-value loading" id="ads-cpp">—</div>
+          <div class="kpi-delta" id="ads-cpp-delta"></div>
+        </div>
+      </div>
+
+      <div class="metric-charts-grid">
+        <div class="panel clickable-panel" onclick="openAdsModal('spend')">
+          <div class="panel-header"><div class="panel-title">Daily Spend</div></div>
+          <div class="chart-mini"><canvas id="ads-chart-spend"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openAdsModal('revenue')">
+          <div class="panel-header"><div class="panel-title">Daily Revenue</div></div>
+          <div class="chart-mini"><canvas id="ads-chart-revenue"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openAdsModal('roas')">
+          <div class="panel-header"><div class="panel-title">Purchase ROAS</div></div>
+          <div class="chart-mini"><canvas id="ads-chart-roas"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openAdsModal('purchases')">
+          <div class="panel-header"><div class="panel-title">Daily Purchases</div></div>
+          <div class="chart-mini"><canvas id="ads-chart-purchases"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openAdsModal('clicks')">
+          <div class="panel-header"><div class="panel-title">Daily Clicks</div></div>
+          <div class="chart-mini"><canvas id="ads-chart-clicks"></canvas></div>
+        </div>
+        <div class="panel clickable-panel" onclick="openAdsModal('impressions')">
+          <div class="panel-header"><div class="panel-title">Daily Impressions</div></div>
+          <div class="chart-mini"><canvas id="ads-chart-impressions"></canvas></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Campaign Performance</div>
+          <div class="panel-badge" id="ads-camp-badge">—</div>
+        </div>
+        <div id="ads-campaigns-table"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Ad Set Performance</div>
+          <div class="panel-badge" id="ads-adset-badge">—</div>
+        </div>
+        <div id="ads-adsets-table"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Ad Performance</div>
+          <div class="panel-badge" id="ads-ad-badge">—</div>
+        </div>
+        <div id="ads-ads-table"></div>
+      </div>
+
+      <div class="dev-feedback-wrap">
+        <div class="dev-feedback-header">
+          <span class="dev-feedback-label">◈ Dev Notes</span>
+          <button class="dev-feedback-btn" id="df-btn-ads" onclick="runDevFeedback('ads')">Generate</button>
+        </div>
+        <div class="dev-feedback-panel" id="df-panel-ads"></div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Chart detail modal ── -->
+<div id="chart-modal" class="modal-overlay" onclick="if(event.target===this)closeChartModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title"></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="insights-btn" id="modal-insights-btn" onclick="runModalInsights()">✦ Insights</button>
+        <button class="insights-btn" onclick="openModalChat()">◎ Questions</button>
+        <button class="modal-close" onclick="closeChartModal()">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="modal-insights-wrap" id="modal-insights-wrap" style="display:none;">
+        <div class="insights-panel visible" id="modal-insights-panel"></div>
+      </div>
+      <div id="modal-stats" class="modal-stats" style="display:none;"></div>
+      <div class="modal-chart-wrap"><canvas id="modal-canvas"></canvas></div>
+      <div class="modal-table-wrap">
+        <div class="section-label">Data</div>
+        <div id="modal-table"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="chat-modal" class="modal-overlay" onclick="if(event.target===this)closeChatModal()">
+  <div class="chat-modal-box">
+    <div class="chat-header">
+      <div>
+        <div class="chat-title" id="chat-modal-title">Ask about data</div>
+        <div class="chat-subtitle" id="chat-modal-subtitle"></div>
+      </div>
+      <div class="chat-header-actions">
+        <button class="insights-btn" onclick="clearChatSession()">↺ New</button>
+        <button class="modal-close" onclick="closeChatModal()">✕</button>
+      </div>
+    </div>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-wrap">
+      <textarea class="chat-textarea" id="chat-textarea" placeholder="Ask a question about your data… (Enter to send)" rows="1" onkeydown="chatKeydown(event)"></textarea>
+      <button class="chat-send-btn" id="chat-send-btn" onclick="sendChat()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Brand Config ──────────────────────────────────────────────────────────────
+const BRAND_CONFIG = {
+  ra:  { name: 'Real Avid',      logoHtml: 'Real<span>Avid</span>',       accent: '#E7131A', accent2: '#b80f14' },
+  wiq: { name: 'Work IQ Tools',  logoHtml: 'Work IQ<span>Tools</span>',   accent: '#f7941d', accent2: '#d4780e' },
+  oe:  { name: 'Outdoor Edge',   logoHtml: 'Outdoor<span>Edge</span>',    accent: '#eba900', accent2: '#c99200' },
+};
+let activeBrand = 'ra';
+
+function accentColor() { return BRAND_CONFIG[activeBrand].accent; }
+function accentColorAlpha(a) {
+  const h = accentColor();
+  const r = parseInt(h.slice(1,3),16), g = parseInt(h.slice(3,5),16), b = parseInt(h.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ─── State ─────────────────────────────────────────────────────────────────────
+let activeDays   = 30;
+let includeToday = false;
+let customStart  = null;
+let customEnd    = null;
+let activePreset = null;
+let compareMode  = 'year';
+
+let shopifyData = null;
+let klaviyoData = null;
+let adsData     = null;
+let ga4Data     = null;
+
+const shCharts  = {};
+const ovCharts  = {};
+const adsCharts = {};
+let klCampaignChart = null;
+let klFlowChart     = null;
+
+Chart.defaults.color       = '#6b7280';
+Chart.defaults.borderColor = '#2a2e33';
+Chart.defaults.font.family = "'Barlow', sans-serif";
+
+// ─── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ─── Date Range Tabs ───────────────────────────────────────────────────────────
+function calcPresetDates(preset) {
+  const today = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const todayStr = fmt(today);
+  if (preset === 'week') {
+    const dow = today.getDay(); // 0=Sun
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+    return { start: fmt(monday), end: todayStr };
+  }
+  if (preset === 'month') {
+    return { start: `${today.getFullYear()}-${pad(today.getMonth()+1)}-01`, end: todayStr };
+  }
+  if (preset === 'last-month') {
+    const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const last  = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { start: fmt(first), end: fmt(last) };
+  }
+  if (preset === 'year') {
+    return { start: `${today.getFullYear()}-01-01`, end: todayStr };
+  }
+  return null;
+}
+
+document.querySelectorAll('.range-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (btn.id === 'custom-tab') {
+      const wrap = document.getElementById('custom-date-wrap');
+      wrap.classList.add('visible');
+      const endEl   = document.getElementById('date-end');
+      const startEl = document.getElementById('date-start');
+      if (!endEl.value)   endEl.value   = new Date().toISOString().split('T')[0];
+      if (!startEl.value) startEl.value = new Date(Date.now() - 30*86400000).toISOString().split('T')[0];
+      return;
+    }
+    document.getElementById('custom-date-wrap').classList.remove('visible');
+    if (btn.dataset.preset) {
+      const dates = calcPresetDates(btn.dataset.preset);
+      if (dates) {
+        activePreset = btn.dataset.preset;
+        customStart  = dates.start;
+        customEnd    = dates.end;
+        activeDays   = null;
+        updateRangeLabels();
+        loadAll();
+      }
+    } else {
+      activePreset = null;
+      customStart  = null;
+      customEnd    = null;
+      activeDays   = parseInt(btn.dataset.days);
+      updateRangeLabels();
+      loadAll();
+    }
+  });
+});
+
+function applyCustomRange() {
+  const start = document.getElementById('date-start').value;
+  const end   = document.getElementById('date-end').value;
+  if (!start || !end || start > end) { alert('Please select a valid start and end date.'); return; }
+  customStart  = start;
+  customEnd    = end;
+  activeDays   = null;
+  activePreset = null;
+  updateRangeLabels();
+  loadAll();
+}
+
+document.getElementById('include-today-cb').addEventListener('change', function() {
+  includeToday = this.checked;
+  if (activeDays) loadAll();
+});
+
+// ─── Compare Tabs ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.compare-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.compare-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    compareMode = btn.dataset.compare;
+    updateRangeLabels();
+    loadAll();
+  });
+});
+
+// ─── Reset dashboard to blank loading state ────────────────────────────────────
+function resetDashboard() {
+  shopifyData = null;
+  klaviyoData = null;
+  adsData     = null;
+  ga4Data     = null;
+  // KPI values → loading skeleton
+  document.querySelectorAll('.kpi-value').forEach(el => {
+    el.textContent = '—';
+    el.classList.add('loading');
+  });
+  // Delta badges → clear
+  document.querySelectorAll('.kpi-delta').forEach(el => {
+    el.textContent = '';
+    el.className = 'kpi-delta';
+  });
+  // Panel badges
+  ['ov-kl-camp-badge','ov-kl-flow-badge','kl-camp-badge','kl-flow-badge','ads-camp-badge'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '—';
+  });
+  document.querySelectorAll('.panel-stats').forEach(el => { el.innerHTML = ''; });
+  document.querySelectorAll('.insights-panel').forEach(el => { el.classList.remove('visible'); el.innerHTML = ''; });
+  // Content areas
+  ['top-products-mini','kl-campaigns-table','kl-flow-rows','ads-campaigns-table'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  // Ads info reset
+  const adsInfo = document.getElementById('ads-data-info');
+  if (adsInfo) adsInfo.textContent = 'No data loaded';
+  // Destroy all charts
+  Object.keys(shCharts).forEach(id => { shCharts[id].destroy(); delete shCharts[id]; });
+  Object.keys(ovCharts).forEach(id => { ovCharts[id].destroy(); delete ovCharts[id]; });
+  Object.keys(adsCharts).forEach(id => { adsCharts[id].destroy(); delete adsCharts[id]; });
+  if (klCampaignChart) { klCampaignChart.destroy(); klCampaignChart = null; }
+  if (klFlowChart)     { klFlowChart.destroy();     klFlowChart     = null; }
+}
+
+// ─── Brand Switcher ────────────────────────────────────────────────────────────
+function updateAdsTabVisibility() {
+  const navAds = document.getElementById('nav-ads');
+  if (!navAds) return;
+  const show = activeBrand === 'wiq';
+  navAds.style.display = show ? '' : 'none';
+  const adsSection = document.getElementById('ov-ads-section');
+  if (adsSection) adsSection.style.display = show ? '' : 'none';
+  // If ads tab is active but brand no longer supports it, switch to overview
+  if (!show && navAds.classList.contains('active')) {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.nav-tab[data-tab="overview"]').classList.add('active');
+    document.getElementById('tab-overview').classList.add('active');
+  }
+}
+
+document.querySelectorAll('.brand-sw-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.brand === activeBrand) return;
+    activeBrand = btn.dataset.brand;
+    document.querySelectorAll('.brand-sw-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const cfg = BRAND_CONFIG[activeBrand];
+    document.documentElement.style.setProperty('--accent',  cfg.accent);
+    document.documentElement.style.setProperty('--accent2', cfg.accent2);
+    document.getElementById('brand-logo').innerHTML = cfg.logoHtml;
+    updateAdsTabVisibility();
+    resetDashboard();
+    refreshAll();
+  });
+});
+
+// ─── Date Helpers ──────────────────────────────────────────────────────────────
+function getDateParams() {
+  const bp = `brand=${activeBrand}`;
+  if (customStart && customEnd) return `start=${customStart}&end=${customEnd}&${bp}`;
+  if (activeDays) {
+    const now     = new Date();
+    const isoDate = d => d.toISOString().split('T')[0];
+    const endDate   = isoDate(includeToday ? now : new Date(now - 86400000));
+    const startDate = isoDate(new Date(+now - activeDays * 86400000));
+    return `start=${startDate}&end=${endDate}&${bp}`;
+  }
+  return `brand=${activeBrand}`;
+}
+
+function getRangeLabel() {
+  if (activePreset === 'week')       return 'This Week';
+  if (activePreset === 'month')      return 'This Month';
+  if (activePreset === 'last-month') return 'Last Month';
+  if (activePreset === 'year')       return 'This Year (YTD)';
+  if (customStart && customEnd) {
+    const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${fmt(customStart)} – ${fmt(customEnd)}`;
+  }
+  if (activeDays === 365) return 'Last 12 Months';
+  if (activeDays)         return `Last ${activeDays} Days`;
+  return 'Custom Range';
+}
+
+function getCompareLabel() {
+  if (compareMode === 'period') return 'vs. Prev Period';
+  if (compareMode === 'year')   return 'vs. Last Year';
+  return '';
+}
+
+function updateRangeLabels(compDateLabel) {
+  const label = getRangeLabel();
+  ['ov-range-label','sh-range-label','kl-range-label'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+  const adsRangeEl = document.getElementById('ads-range-label');
+  if (adsRangeEl) adsRangeEl.textContent = `Work IQ Tools — ${label}`;
+  const cl = compDateLabel || getCompareLabel();
+  ['ov-compare-badge','sh-compare-badge','kl-compare-badge','ads-compare-badge'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = cl;
+    el.style.display = cl ? '' : 'none';
+  });
+}
+
+// ─── Klaviyo comparison: filter campaigns for the prior period (client-side) ──
+function getComparisonCampaigns() {
+  if (compareMode === 'none' || !klaviyoData) return null;
+  const allCamps = klaviyoData.campaigns?.campaigns || [];
+  let compStartStr, compEndStr;
+
+  if (compareMode === 'period') {
+    if (customStart && customEnd) {
+      const startMs = new Date(customStart).getTime();
+      const endMs   = new Date(customEnd).getTime();
+      const dur = endMs - startMs;
+      compEndStr   = customStart;
+      compStartStr = new Date(startMs - dur).toISOString().split('T')[0];
+    } else if (activeDays) {
+      const durMs = activeDays * 86400000;
+      const currentStartMs = Date.now() - durMs;
+      compEndStr   = new Date(currentStartMs).toISOString().split('T')[0];
+      compStartStr = new Date(currentStartMs - durMs).toISOString().split('T')[0];
+    }
+  } else if (compareMode === 'year') {
+    if (customStart && customEnd) {
+      const s = new Date(customStart); s.setFullYear(s.getFullYear() - 1);
+      const e = new Date(customEnd);   e.setFullYear(e.getFullYear() - 1);
+      compStartStr = s.toISOString().split('T')[0];
+      compEndStr   = e.toISOString().split('T')[0];
+    } else if (activeDays) {
+      const durMs = activeDays * 86400000;
+      const yearAgoMs = Date.now() - 365 * 86400000;
+      compEndStr   = new Date(yearAgoMs).toISOString().split('T')[0];
+      compStartStr = new Date(yearAgoMs - durMs).toISOString().split('T')[0];
+    }
+  }
+
+  if (!compStartStr || !compEndStr) return null;
+  return allCamps.filter(c => {
+    if (!c.sendTime) return false;
+    const d = c.sendTime.split('T')[0];
+    return d >= compStartStr && d <= compEndStr;
+  });
+}
+
+// ─── Value Formatters ──────────────────────────────────────────────────────────
+function fmt$(n) {
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000)    return '$' + (n/1000).toFixed(1) + 'K';
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function fmtNum(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000)    return (n/1000).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+}
+function setKpi(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = value;
+  el.classList.remove('loading');
+}
+function showDelta(id, current, prev) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (prev === null || prev === undefined || prev === 0 || typeof prev !== 'number') {
+    el.textContent = '';
+    el.className = 'kpi-delta';
+    return;
+  }
+  const pct = ((current - prev) / Math.abs(prev)) * 100;
+  const isPos = pct >= 0;
+  el.textContent = `${isPos ? '↑' : '↓'} ${Math.abs(pct).toFixed(1)}% ${getCompareLabel()}`;
+  el.className = `kpi-delta ${isPos ? 'pos' : 'neg'}`;
+}
+function clearDelta(id) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = ''; el.className = 'kpi-delta'; }
+}
+function statusBadge(status) {
+  const map = { paid:'paid', pending:'pending', refunded:'refunded', fulfilled:'fulfilled', unfulfilled:'unfulfilled', null:'unfulfilled', active:'active', draft:'draft', Sent:'sent' };
+  const cls = map[status] || 'draft';
+  return `<span class="badge badge-${cls}">${status || 'unfulfilled'}</span>`;
+}
+
+// ─── Health Check ──────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const d = await fetch('/api/health?brand=' + activeBrand).then(r => r.json());
+    const dot    = document.getElementById('status-dot');
+    const banner = document.getElementById('conn-banner');
+    const msgs = [];
+    if (!d.shopify) msgs.push(`Shopify: ${d.errors?.shopify || 'connection failed'}`);
+    if (!d.klaviyo) msgs.push(`Klaviyo: ${d.errors?.klaviyo || 'connection failed'}`);
+    if (msgs.length) {
+      dot.className = 'status-dot error';
+      banner.textContent = '⚠ Connection issue — ' + msgs.join(' · ');
+      banner.classList.add('visible');
+    } else {
+      dot.className = 'status-dot ok';
+      banner.classList.remove('visible');
+    }
+  } catch(e) {
+    document.getElementById('status-dot').className = 'status-dot error';
+  }
+}
+
+// ─── Shared line-chart renderer ────────────────────────────────────────────────
+function setChartStats(canvasId, data, prefix, compData) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const header = canvas.closest('.panel')?.querySelector('.panel-header');
+  if (!header) return;
+  let statsEl = header.querySelector('.panel-stats');
+  if (!statsEl) {
+    statsEl = document.createElement('div');
+    statsEl.className = 'panel-stats';
+    header.appendChild(statsEl);
+  }
+  const valid = data.filter(v => v !== null && v !== undefined && !isNaN(v));
+  if (valid.length === 0) { statsEl.innerHTML = ''; return; }
+  const total = valid.reduce((a, b) => a + b, 0);
+  const avg   = total / valid.length;
+  const fmtS  = v => {
+    if (prefix === '$') return fmt$(v);
+    if (prefix === '%') return v.toFixed(1) + '%';
+    if (prefix === 'x') return v.toFixed(2) + 'x';
+    return fmtNum(v);
+  };
+  let html = '';
+  if (prefix === '%' || prefix === 'x') {
+    html = `<div class="ps-item"><span class="ps-val">${fmtS(avg)}</span><span class="ps-lbl">avg</span></div>`;
+  } else {
+    html = `<div class="ps-item"><span class="ps-val">${fmtS(total)}</span><span class="ps-lbl">total</span></div>
+      <div class="ps-item"><span class="ps-val">${fmtS(avg)}</span><span class="ps-lbl">avg/day</span></div>`;
+  }
+  if (compData) {
+    const validC = compData.filter(v => v !== null && v !== undefined && !isNaN(v));
+    if (validC.length > 0) {
+      const compTotal = validC.reduce((a, b) => a + b, 0);
+      const compAvg   = compTotal / validC.length;
+      const cur  = (prefix === '%' || prefix === 'x') ? avg   : total;
+      const prev = (prefix === '%' || prefix === 'x') ? compAvg : compTotal;
+      const delta  = cur - prev;
+      const pctChg = prev !== 0 ? (delta / Math.abs(prev) * 100) : 0;
+      const color  = delta >= 0 ? 'var(--green)' : 'var(--red-err)';
+      const pctStr = (pctChg >= 0 ? '+' : '') + pctChg.toFixed(1) + '%';
+      html += `<div class="ps-sep"></div>
+        <div class="ps-item"><span class="ps-val" style="color:${color};">${fmtDelta(delta, prefix)}</span><span class="ps-lbl">change</span></div>
+        <div class="ps-item"><span class="ps-val" style="color:${color};">${pctStr}</span><span class="ps-lbl">% chg</span></div>`;
+    }
+  }
+  statsEl.innerHTML = html;
+}
+
+function renderLineChart(chartCache, id, labels, data, color, prefix, sparse, compData, compLabel) {
+  if (chartCache[id]) { chartCache[id].destroy(); delete chartCache[id]; }
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx  = canvas.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 150);
+  grad.addColorStop(0, color + '35');
+  grad.addColorStop(1, color + '00');
+
+  const datasets = [{
+    label: 'Current',
+    data,
+    borderColor: color,
+    backgroundColor: grad,
+    borderWidth: 1.5,
+    tension: 0.4,
+    fill: true,
+    spanGaps: false,
+    pointRadius: sparse ? 0 : 2,
+    pointHoverRadius: 4,
+    pointBackgroundColor: color,
+  }];
+
+  if (compData) {
+    datasets.push({
+      label: compLabel || 'Previous',
+      data: compData,
+      borderColor: color + '80',
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderDash: [4, 4],
+      tension: 0.4,
+      fill: false,
+      spanGaps: false,
+      pointRadius: 0,
+      pointHoverRadius: 3,
+      pointBackgroundColor: color + '80',
+    });
+  }
+
+  const opts = miniChartOptions(prefix);
+  opts.plugins.legend = {
+    display: !!compData,
+    labels: { boxWidth: 12, font: { size: 10 }, color: '#6b7280' }
+  };
+
+  chartCache[id] = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: opts });
+  setChartStats(id, data, prefix, compData || null);
+}
+
+function renderMetricChart(id, labels, data, color, prefix, sparse, compData, compLabel) {
+  renderLineChart(shCharts, id, labels, data, color, prefix, sparse, compData, compLabel);
+}
+function renderOvChart(id, labels, data, color, prefix, sparse, compData, compLabel) {
+  renderLineChart(ovCharts, id, labels, data, color, prefix, sparse, compData, compLabel);
+}
+
+function miniChartOptions(prefix) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1c1f22',
+        borderColor: '#2a2e33',
+        borderWidth: 1,
+        titleColor: '#f0f1f2',
+        bodyColor: '#9ca3af',
+        padding: 8,
+        callbacks: {
+          label: ctx => {
+            const v = ctx.parsed.y;
+            const lbl = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
+            if (prefix === '$') return ' ' + lbl + fmt$(v);
+            if (prefix === '%') return ' ' + lbl + v.toFixed(1) + '%';
+            return ' ' + lbl + fmtNum(v);
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { maxTicksLimit: 6, font: { size: 10 } }
+      },
+      y: {
+        grid: { color: 'rgba(42,46,51,0.8)' },
+        beginAtZero: false,
+        afterDataLimits(scale) {
+          const range = scale.max - scale.min;
+          if (range > 0) {
+            scale.min = Math.max(0, scale.min - range * 0.1);
+            scale.max = scale.max + range * 0.1;
+          }
+        },
+        ticks: {
+          maxTicksLimit: 4,
+          font: { size: 10 },
+          callback: v => {
+            if (prefix === '$') return fmt$(v);
+            if (prefix === '%') return v.toFixed(0) + '%';
+            return fmtNum(v);
+          }
+        }
+      }
+    }
+  };
+}
+
+// ─── Shopify: Load ─────────────────────────────────────────────────────────────
+async function loadShopify() {
+  const brandSnapshot = activeBrand;
+  try {
+    const params = getDateParams();
+    const compareParam = compareMode !== 'none' ? `&compare=${compareMode}` : '';
+    const [sumRes, prodRes, ga4Res] = await Promise.all([
+      fetch(`/api/shopify/summary?${params}${compareParam}`),
+      fetch(`/api/shopify/top-products?${params}${compareParam}`),
+      fetch(`/api/ga4/sessions?${params}${compareParam}`),
+    ]);
+    const [summary, products, ga4] = await Promise.all([sumRes.json(), prodRes.json(), ga4Res.json()]);
+    if (activeBrand !== brandSnapshot) return;
+    if (summary.error) throw new Error(summary.error);
+    shopifyData = { summary, products };
+    ga4Data = ga4.error ? null : ga4;
+    renderShopify();
+    renderOverviewShopify();
+  } catch(e) {
+    if (activeBrand !== brandSnapshot) return;
+    console.error('Shopify load error:', e);
+    ['ov-revenue','ov-orders','ov-aov','ov-sessions','ov-conv-rate',
+     'sh-netsales','sh-orders','sh-aov','sh-new-customers','sh-returning-rate','sh-checkout-conv','sh-sessions','sh-conv-rate'
+    ].forEach(id => setKpi(id, 'Error'));
+  }
+}
+
+// ─── GA4 helpers ───────────────────────────────────────────────────────────────
+function buildGA4SessionMap(ga4Daily) {
+  const m = {};
+  (ga4Daily || []).forEach(d => { m[d.date] = d.sessions; });
+  return m;
+}
+function dailyConvRate(shopifyDaily, ga4SessionMap) {
+  return shopifyDaily.map(d => {
+    const s = ga4SessionMap[d.date];
+    return (s > 0) ? parseFloat(((d.orders / s) * 100).toFixed(2)) : null;
+  });
+}
+function totalConvRate(totalOrders, totalSessions) {
+  return (totalSessions > 0) ? parseFloat(((totalOrders / totalSessions) * 100).toFixed(2)) : null;
+}
+
+// ─── Top Products table (shared) ───────────────────────────────────────────────
+function renderTopProductsTable(containerId, statsId, products, comparison, mini) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!products || products.length === 0) { el.innerHTML = '<div class="empty-msg">No data</div>'; return; }
+
+  const compProducts = (comparison && compareMode !== 'none') ? comparison.products : null;
+  const compMap = {};
+  if (compProducts) compProducts.forEach(p => { compMap[p.id] = p; });
+
+  const hasComp = compProducts && compProducts.length > 0;
+  const totalRev  = products.reduce((s, p) => s + p.revenue, 0);
+  const avgRev    = products.length > 0 ? totalRev / products.length : 0;
+  const compTotal = hasComp ? (compProducts || []).filter(p => products.find(c => c.id === p.id)).reduce((s, p) => s + p.revenue, 0) : null;
+
+  // Panel stats
+  const statsEl = document.getElementById(statsId);
+  if (statsEl) {
+    const items = [
+      `<span class="panel-stat-item"><span class="panel-stat-label">Total</span><span class="panel-stat-value">${fmt$(totalRev)}</span></span>`,
+      `<span class="panel-stat-item"><span class="panel-stat-label">Avg</span><span class="panel-stat-value">${fmt$(avgRev)}</span></span>`,
+    ];
+    if (hasComp && compTotal !== null) {
+      const chg = totalRev - compTotal;
+      const pct = compTotal > 0 ? (chg / compTotal) * 100 : null;
+      const sign = chg >= 0 ? '+' : '';
+      const col  = chg >= 0 ? 'var(--green)' : 'var(--red-err)';
+      items.push(`<span class="panel-stat-item"><span class="panel-stat-label">Change</span><span class="panel-stat-value" style="color:${col}">${sign}${fmt$(chg)}</span></span>`);
+      if (pct !== null) items.push(`<span class="panel-stat-item"><span class="panel-stat-label">vs Prior</span><span class="panel-stat-value" style="color:${col}">${sign}${pct.toFixed(1)}%</span></span>`);
+    }
+    statsEl.innerHTML = items.join('');
+  }
+
+  const maxRev = Math.max(...products.map(p => p.revenue), 1);
+
+  if (mini) {
+    // Compact bar view with optional comparison
+    el.innerHTML = products.map(p => {
+      const cp = compMap[p.id];
+      const chg = cp ? p.revenue - cp.revenue : null;
+      const pct = (cp && cp.revenue > 0) ? ((chg / cp.revenue) * 100) : null;
+      const sign = chg !== null ? (chg >= 0 ? '+' : '') : '';
+      const col  = chg !== null ? (chg >= 0 ? 'var(--green)' : 'var(--red-err)') : 'var(--muted)';
+      return `
+        <div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;gap:8px;">
+            <span style="font-size:12px;color:var(--light);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(p.title)}</span>
+            <span style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--white);white-space:nowrap;">${fmt$(p.revenue)}</span>
+            ${pct !== null ? `<span style="font-size:11px;color:${col};white-space:nowrap;">${sign}${pct.toFixed(1)}%</span>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div class="rev-bar" style="flex:1;">
+              <div class="rev-bar-fill" style="width:${Math.round(p.revenue/maxRev*100)}%"></div>
+            </div>
+            ${cp ? `<div class="rev-bar" style="flex:1;opacity:0.38;"><div class="rev-bar-fill" style="width:${Math.round(cp.revenue/maxRev*100)}%;background:rgba(255,255,255,0.7);"></div></div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } else {
+    // Full table view
+    const colHdr = hasComp
+      ? `<th>Product</th><th style="text-align:right">Revenue</th><th style="text-align:right">Prior</th><th style="text-align:right">Change</th><th style="text-align:right">Chg %</th><th style="text-align:right">Orders</th><th style="text-align:right">AOV</th>`
+      : `<th>Product</th><th style="text-align:right">Revenue</th><th style="text-align:right">% of Total</th><th style="text-align:right">Orders</th><th style="text-align:right">AOV</th>`;
+
+    const rows = products.map(p => {
+      const cp  = compMap[p.id];
+      const pct = totalRev > 0 ? (p.revenue / totalRev * 100) : 0;
+      if (hasComp) {
+        const chg    = cp ? p.revenue - cp.revenue : null;
+        const chgPct = (cp && cp.revenue > 0) ? ((chg / cp.revenue) * 100) : null;
+        const col    = chg !== null ? (chg >= 0 ? 'var(--green)' : 'var(--red-err)') : '';
+        const sign   = chg !== null && chg >= 0 ? '+' : '';
+        return `<tr>
+          <td>${escHtml(p.title)}</td>
+          <td style="text-align:right">${fmt$(p.revenue)}</td>
+          <td style="text-align:right;color:var(--muted)">${cp ? fmt$(cp.revenue) : '—'}</td>
+          <td style="text-align:right;color:${col}">${chg !== null ? sign + fmt$(chg) : '—'}</td>
+          <td style="text-align:right;color:${col}">${chgPct !== null ? sign + chgPct.toFixed(1) + '%' : '—'}</td>
+          <td style="text-align:right">${fmtNum(p.quantity)}</td>
+          <td style="text-align:right">${fmt$(p.aov)}</td>
+        </tr>`;
+      } else {
+        return `<tr>
+          <td>${escHtml(p.title)}</td>
+          <td style="text-align:right">${fmt$(p.revenue)}</td>
+          <td style="text-align:right;color:var(--muted)">${pct.toFixed(1)}%</td>
+          <td style="text-align:right">${fmtNum(p.quantity)}</td>
+          <td style="text-align:right">${fmt$(p.aov)}</td>
+        </tr>`;
+      }
+    }).join('');
+
+    // Totals row
+    const totalQty = products.reduce((s, p) => s + p.quantity, 0);
+    const totalAov = totalQty > 0 ? totalRev / totalQty : 0;
+    let totalsRow;
+    if (hasComp) {
+      const totChg = compTotal !== null ? totalRev - compTotal : null;
+      const totPct = (totChg !== null && compTotal > 0) ? (totChg / compTotal * 100) : null;
+      const col  = totChg !== null ? (totChg >= 0 ? 'var(--green)' : 'var(--red-err)') : '';
+      const sign = totChg !== null && totChg >= 0 ? '+' : '';
+      totalsRow = `<tr style="border-top:1px solid var(--border);font-weight:600;">
+        <td>Total</td>
+        <td style="text-align:right">${fmt$(totalRev)}</td>
+        <td style="text-align:right;color:var(--muted)">${compTotal !== null ? fmt$(compTotal) : '—'}</td>
+        <td style="text-align:right;color:${col}">${totChg !== null ? sign + fmt$(totChg) : '—'}</td>
+        <td style="text-align:right;color:${col}">${totPct !== null ? sign + totPct.toFixed(1) + '%' : '—'}</td>
+        <td style="text-align:right">${fmtNum(totalQty)}</td>
+        <td style="text-align:right">${fmt$(totalAov)}</td>
+      </tr>`;
+    } else {
+      totalsRow = `<tr style="border-top:1px solid var(--border);font-weight:600;">
+        <td>Total</td><td style="text-align:right">${fmt$(totalRev)}</td>
+        <td style="text-align:right">100%</td>
+        <td style="text-align:right">${fmtNum(totalQty)}</td>
+        <td style="text-align:right">${fmt$(totalAov)}</td>
+      </tr>`;
+    }
+
+    el.innerHTML = `<table class="data-table"><thead><tr>${colHdr}</tr></thead><tbody>${rows}${totalsRow}</tbody></table>`;
+  }
+}
+
+// ─── Shopify: Render (Shopify tab) ─────────────────────────────────────────────
+function renderShopify() {
+  if (!shopifyData) return;
+  const { summary } = shopifyData;
+  const comp = summary.comparison;
+  const compareLabel = getCompareLabel();
+
+  if (comp && comp.start && comp.end && compareMode !== 'none') {
+    const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    updateRangeLabels(`vs. ${fmt(comp.start)} – ${fmt(comp.end)}`);
+  } else {
+    updateRangeLabels();
+  }
+
+  setKpi('sh-netsales',      fmt$(summary.totalRevenue));
+  setKpi('sh-orders',        fmtNum(summary.orderCount));
+  setKpi('sh-aov',           fmt$(summary.aov));
+  setKpi('sh-new-customers', fmtNum(summary.newCustomerOrders));
+  setKpi('sh-returning-rate', summary.returningRate.toFixed(1) + '%');
+  setKpi('sh-checkout-conv',
+    summary.checkoutConvRate !== null ? summary.checkoutConvRate.toFixed(1) + '%' : '—'
+  );
+
+  if (comp && compareMode !== 'none') {
+    showDelta('sh-netsales-delta',      summary.totalRevenue,        comp.totalRevenue);
+    showDelta('sh-orders-delta',        summary.orderCount,          comp.orderCount);
+    showDelta('sh-aov-delta',           summary.aov,                 comp.aov);
+    showDelta('sh-new-customers-delta', summary.newCustomerOrders,   comp.newCustomerOrders);
+    showDelta('sh-returning-rate-delta',summary.returningRate,       comp.returningRate);
+    if (summary.checkoutConvRate !== null && comp.checkoutConvRate !== null) {
+      showDelta('sh-checkout-conv-delta', summary.checkoutConvRate,  comp.checkoutConvRate);
+    } else {
+      clearDelta('sh-checkout-conv-delta');
+    }
+  } else {
+    ['sh-netsales-delta','sh-orders-delta','sh-aov-delta',
+     'sh-new-customers-delta','sh-returning-rate-delta','sh-checkout-conv-delta'
+    ].forEach(clearDelta);
+  }
+
+  const sparse = summary.days > 60;
+  const labels = summary.dailyData.map(d =>
+    new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  );
+
+  const cd = (comp && compareMode !== 'none') ? comp.dailyData : null;
+  const rr = d => d.orders > 0 ? parseFloat(((d.orders - d.newCustomers) / d.orders * 100).toFixed(1)) : null;
+  renderMetricChart('sh-chart-sales',          labels, summary.dailyData.map(d => d.revenue),         accentColor(), '$', sparse, cd ? cd.map(d => d.revenue)         : null, compareLabel);
+  renderMetricChart('sh-chart-orders',         labels, summary.dailyData.map(d => d.orders),           '#108474', '',  sparse, cd ? cd.map(d => d.orders)           : null, compareLabel);
+  renderMetricChart('sh-chart-aov',            labels, summary.dailyData.map(d => d.aov),              '#FBCD0A', '$', sparse, cd ? cd.map(d => d.aov)              : null, compareLabel);
+  renderMetricChart('sh-chart-new-customers',  labels, summary.dailyData.map(d => d.newCustomers),     '#3498db', '',  sparse, cd ? cd.map(d => d.newCustomers)     : null, compareLabel);
+  renderMetricChart('sh-chart-returning-rate', labels, summary.dailyData.map(rr), '#2ecc71', '%', sparse, cd ? cd.map(rr) : null, compareLabel);
+  renderMetricChart('sh-chart-checkout-conv',  labels, summary.dailyData.map(d => d.checkoutConvRate), '#9b59b6', '%', sparse, cd ? cd.map(d => d.checkoutConvRate) : null, compareLabel);
+
+  // GA4 sessions + conversion rate
+  const ga4CompData  = (ga4Data?.comparison && compareMode !== 'none') ? ga4Data.comparison : null;
+  const sessMap      = buildGA4SessionMap(ga4Data?.daily);
+  const compSessMap  = buildGA4SessionMap(ga4CompData?.daily);
+  const dailySess    = summary.dailyData.map(d => sessMap[d.date] ?? null);
+  const compDailySess = cd ? cd.map(d => compSessMap[d.date] ?? null) : null;
+  const dailyCR      = dailyConvRate(summary.dailyData, sessMap);
+  const compDailyCR  = cd ? dailyConvRate(cd, compSessMap) : null;
+
+  if (ga4Data) {
+    const totalSess = ga4Data.totalSessions;
+    const convR = totalConvRate(summary.orderCount, totalSess);
+    setKpi('sh-sessions',  fmtNum(totalSess));
+    setKpi('sh-conv-rate', convR !== null ? convR.toFixed(2) + '%' : '—');
+    if (ga4CompData && compareMode !== 'none') {
+      showDelta('sh-sessions-delta',  totalSess, ga4CompData.totalSessions);
+      const compConvR = totalConvRate(comp?.orderCount ?? 0, ga4CompData.totalSessions);
+      if (convR !== null && compConvR !== null) showDelta('sh-conv-rate-delta', convR, compConvR);
+      else clearDelta('sh-conv-rate-delta');
+    } else {
+      clearDelta('sh-sessions-delta');
+      clearDelta('sh-conv-rate-delta');
+    }
+  } else {
+    setKpi('sh-sessions',  '—');
+    setKpi('sh-conv-rate', '—');
+    clearDelta('sh-sessions-delta');
+    clearDelta('sh-conv-rate-delta');
+  }
+
+  renderMetricChart('sh-chart-sessions',  labels, dailySess,  '#e67e22', '',  sparse, compDailySess, compareLabel);
+  renderMetricChart('sh-chart-conv-rate', labels, dailyCR,    '#1abc9c', '%', sparse, compDailyCR,   compareLabel);
+
+  // Top Products (shopify tab)
+  const { products } = shopifyData;
+  renderTopProductsTable('sh-products-table', 'sh-products-stats', products.products || [], products.comparison, false);
+}
+
+// ─── Overview: Shopify section ─────────────────────────────────────────────────
+function renderOverviewShopify() {
+  if (!shopifyData) return;
+  const { summary, products } = shopifyData;
+  const comp = summary.comparison;
+  const compareLabel = getCompareLabel();
+
+  setKpi('ov-revenue', fmt$(summary.totalRevenue));
+  setKpi('ov-orders',  fmtNum(summary.orderCount));
+  setKpi('ov-aov',     fmt$(summary.aov));
+
+  if (comp && compareMode !== 'none') {
+    showDelta('ov-revenue-delta', summary.totalRevenue, comp.totalRevenue);
+    showDelta('ov-orders-delta',  summary.orderCount,   comp.orderCount);
+    showDelta('ov-aov-delta',     summary.aov,          comp.aov);
+  } else {
+    ['ov-revenue-delta','ov-orders-delta','ov-aov-delta'].forEach(clearDelta);
+  }
+
+  const sparse = summary.days > 60;
+  const labels = summary.dailyData.map(d =>
+    new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  );
+
+  const ovCd = (comp && compareMode !== 'none') ? comp.dailyData : null;
+  const ovRr = d => d.orders > 0 ? parseFloat(((d.orders - d.newCustomers) / d.orders * 100).toFixed(1)) : null;
+  renderOvChart('ov-sh-chart-sales',          labels, summary.dailyData.map(d => d.revenue),         accentColor(), '$', sparse, ovCd ? ovCd.map(d => d.revenue)         : null, compareLabel);
+  renderOvChart('ov-sh-chart-orders',         labels, summary.dailyData.map(d => d.orders),           '#108474', '',  sparse, ovCd ? ovCd.map(d => d.orders)           : null, compareLabel);
+  renderOvChart('ov-sh-chart-aov',            labels, summary.dailyData.map(d => d.aov),              '#FBCD0A', '$', sparse, ovCd ? ovCd.map(d => d.aov)              : null, compareLabel);
+  renderOvChart('ov-sh-chart-new-customers',  labels, summary.dailyData.map(d => d.newCustomers),     '#3498db', '',  sparse, ovCd ? ovCd.map(d => d.newCustomers)     : null, compareLabel);
+  renderOvChart('ov-sh-chart-returning-rate', labels, summary.dailyData.map(ovRr), '#2ecc71', '%', sparse, ovCd ? ovCd.map(ovRr) : null, compareLabel);
+  renderOvChart('ov-sh-chart-checkout-conv',  labels, summary.dailyData.map(d => d.checkoutConvRate), '#9b59b6', '%', sparse, ovCd ? ovCd.map(d => d.checkoutConvRate) : null, compareLabel);
+
+  // GA4 sessions + conversion rate (overview)
+  const ga4CompOv    = (ga4Data?.comparison && compareMode !== 'none') ? ga4Data.comparison : null;
+  const ovSessMap    = buildGA4SessionMap(ga4Data?.daily);
+  const ovCompSessMap = buildGA4SessionMap(ga4CompOv?.daily);
+  const ovDailySess  = summary.dailyData.map(d => ovSessMap[d.date] ?? null);
+  const ovCompSess   = ovCd ? ovCd.map(d => ovCompSessMap[d.date] ?? null) : null;
+  const ovDailyCR    = dailyConvRate(summary.dailyData, ovSessMap);
+  const ovCompCR     = ovCd ? dailyConvRate(ovCd, ovCompSessMap) : null;
+
+  if (ga4Data) {
+    const totalSess = ga4Data.totalSessions;
+    const convR = totalConvRate(summary.orderCount, totalSess);
+    setKpi('ov-sessions',  fmtNum(totalSess));
+    setKpi('ov-conv-rate', convR !== null ? convR.toFixed(2) + '%' : '—');
+    if (ga4CompOv && compareMode !== 'none') {
+      showDelta('ov-sessions-delta',  totalSess, ga4CompOv.totalSessions);
+      const compConvR = totalConvRate(comp?.orderCount ?? 0, ga4CompOv.totalSessions);
+      if (convR !== null && compConvR !== null) showDelta('ov-conv-rate-delta', convR, compConvR);
+      else clearDelta('ov-conv-rate-delta');
+    } else {
+      clearDelta('ov-sessions-delta');
+      clearDelta('ov-conv-rate-delta');
+    }
+  } else {
+    setKpi('ov-sessions',  '—');
+    setKpi('ov-conv-rate', '—');
+    clearDelta('ov-sessions-delta');
+    clearDelta('ov-conv-rate-delta');
+  }
+
+  renderOvChart('ov-sh-chart-sessions',  labels, ovDailySess, '#e67e22', '',  sparse, ovCompSess, compareLabel);
+  renderOvChart('ov-sh-chart-conv-rate', labels, ovDailyCR,   '#1abc9c', '%', sparse, ovCompCR,   compareLabel);
+
+  // Top Products (overview)
+  renderTopProductsTable('top-products-mini', 'ov-products-stats', (products.products || []).slice(0, 5), products.comparison, true);
+}
+
+// ─── Overview: WIQ Meta Ads section ───────────────────────────────────────────
+let ovAdsCharts = {};
+function renderOverviewAds() {
+  if (!adsData || !adsData.totals || activeBrand !== 'wiq') return;
+  const { totals, daily } = adsData;
+  const comp = adsData.comparison;
+  const compareLabel = getCompareLabel();
+  const cd = (comp && compareMode !== 'none') ? comp.daily : null;
+
+  setKpi('ov-ads-spend',   fmt$(totals.spend));
+  setKpi('ov-ads-revenue', fmt$(totals.revenue));
+  setKpi('ov-ads-roas',    totals.roas.toFixed(2) + 'x');
+  setKpi('ov-ads-cpp',     fmt$(totals.costPerPurchase));
+
+  if (comp && comp.totals && compareMode !== 'none') {
+    const ct = comp.totals;
+    showDelta('ov-ads-spend-delta',   totals.spend,           ct.spend);
+    showDelta('ov-ads-revenue-delta', totals.revenue,         ct.revenue);
+    showDelta('ov-ads-roas-delta',    totals.roas,            ct.roas);
+    showDelta('ov-ads-cpp-delta',     totals.costPerPurchase, ct.costPerPurchase);
+  } else {
+    ['ov-ads-spend-delta','ov-ads-revenue-delta','ov-ads-roas-delta','ov-ads-cpp-delta'].forEach(clearDelta);
+  }
+
+  const renderOvAd = (canvasId, getValue, prefix, isInt) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    if (ovAdsCharts[canvasId]) { ovAdsCharts[canvasId].destroy(); delete ovAdsCharts[canvasId]; }
+    const accent = accentColor();
+    const labels = daily.map(d => d.date.slice(5));
+    const values = daily.map(getValue);
+    const compValues = cd ? cd.map(getValue) : null;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 80);
+    grad.addColorStop(0, accent + '40');
+    grad.addColorStop(1, accent + '00');
+    const datasets = [{
+      data: values, borderColor: accent, backgroundColor: grad,
+      borderWidth: 1.5, tension: 0.4, fill: true, pointRadius: 0, spanGaps: false,
+    }];
+    if (compValues) datasets.push({
+      data: compValues, borderColor: accent + '60', backgroundColor: 'transparent',
+      borderWidth: 1, borderDash: [4, 4], tension: 0.4, fill: false, pointRadius: 0, spanGaps: false,
+    });
+    ovAdsCharts[canvasId] = new Chart(canvas, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1c1f22', borderColor: '#2a2e33', borderWidth: 1,
+            titleColor: '#f0f1f2', bodyColor: '#9ca3af', padding: 8,
+            callbacks: { label: c => ' ' + fmtVal(c.parsed.y, prefix) }
+          }
+        },
+        scales: {
+          x: { display: false },
+          y: { display: false, beginAtZero: false }
+        }
+      }
+    });
+    setChartStats(canvasId, values, prefix, compValues);
+  };
+
+  renderOvAd('ov-ads-chart-spend',     d => d.spend,     '$',   false);
+  renderOvAd('ov-ads-chart-revenue',   d => d.revenue,   '$',   false);
+  renderOvAd('ov-ads-chart-roas',      d => d.roas,      'x',   false);
+  renderOvAd('ov-ads-chart-purchases', d => d.purchases, '',    true);
+}
+
+// ─── Klaviyo campaign filter ───────────────────────────────────────────────────
+function getFilteredCampaigns() {
+  if (!klaviyoData) return [];
+  const allCamps = klaviyoData.campaigns?.campaigns || [];
+  if (customStart && customEnd) {
+    return allCamps.filter(c => {
+      if (!c.sendTime) return false;
+      const d = c.sendTime.split('T')[0];
+      return d >= customStart && d <= customEnd;
+    });
+  }
+  if (activeDays) {
+    const cutoff = new Date(Date.now() - activeDays * 86400000).toISOString();
+    return allCamps.filter(c => c.sendTime && c.sendTime >= cutoff);
+  }
+  return allCamps;
+}
+
+// ─── Klaviyo: Load ─────────────────────────────────────────────────────────────
+async function loadKlaviyo() {
+  const brandSnapshot = activeBrand;
+  try {
+    const params = getDateParams();
+    const [ovRes, campRes, flowRes] = await Promise.all([
+      fetch('/api/email/overview?brand=' + activeBrand),
+      fetch(`/api/email/campaigns?${params}`),
+      fetch(`/api/email/flows?${params}`),
+    ]);
+    const [overview, campaigns, flows] = await Promise.all([
+      ovRes.json(), campRes.json(), flowRes.json()
+    ]);
+    if (activeBrand !== brandSnapshot) return;
+    if (overview.error) throw new Error(overview.error);
+    klaviyoData = { overview, campaigns, flows };
+    renderKlaviyo();
+    renderOverviewKlaviyo();
+  } catch(e) {
+    if (activeBrand !== brandSnapshot) return;
+    console.error('Klaviyo load error:', e);
+    ['ov-lists','ov-subs','kl-avg-recipients','kl-campaigns','kl-flows','kl-revenue'].forEach(id => setKpi(id, 'Error'));
+  }
+}
+
+// ─── Klaviyo: Render (Klaviyo tab) ─────────────────────────────────────────────
+function renderKlaviyo() {
+  if (!klaviyoData) return;
+  const { flows } = klaviyoData;
+  const flowList = flows.flows || [];
+  const campList = getFilteredCampaigns();
+  const compCamps = getComparisonCampaigns();
+
+  const totalRecipients = campList.reduce((s, c) => s + (c.recipients || 0), 0);
+  const avgRecipients   = campList.length > 0 ? Math.round(totalRecipients / campList.length) : 0;
+  const campRevenue     = campList.reduce((s, c) => s + (c.revenue || 0), 0);
+  const flowRevenue     = flowList.reduce((s, f) => s + (f.revenue || 0), 0);
+
+  setKpi('kl-avg-recipients', fmtNum(avgRecipients));
+  const sub = document.getElementById('kl-avg-recipients-sub');
+  if (sub) sub.textContent = `${campList.length} campaign${campList.length !== 1 ? 's' : ''} in period`;
+  setKpi('kl-campaigns', fmtNum(campList.length));
+  setKpi('kl-flows',     fmtNum(flowList.length));
+  setKpi('kl-revenue',   fmt$(campRevenue + flowRevenue));
+
+  if (compCamps && compareMode !== 'none') {
+    const compTotal = compCamps.reduce((s, c) => s + (c.recipients || 0), 0);
+    const compAvg   = compCamps.length > 0 ? Math.round(compTotal / compCamps.length) : 0;
+    const compRev   = compCamps.reduce((s, c) => s + (c.revenue || 0), 0);
+    showDelta('kl-avg-recipients-delta', avgRecipients,    compAvg);
+    showDelta('kl-campaigns-delta',      campList.length,  compCamps.length);
+    showDelta('kl-revenue-delta',        campRevenue + flowRevenue, compRev + flowRevenue);
+  } else {
+    ['kl-avg-recipients-delta','kl-campaigns-delta','kl-revenue-delta'].forEach(clearDelta);
+  }
+
+  // Campaigns table — sorted by send date desc
+  const campSorted = [...campList].sort((a, b) => {
+    const ta = a.sendTime ? new Date(a.sendTime).getTime() : 0;
+    const tb = b.sendTime ? new Date(b.sendTime).getTime() : 0;
+    return tb - ta;
+  });
+  const campBadge = document.getElementById('kl-camp-badge');
+  if (campBadge) campBadge.textContent = `${campSorted.length} campaigns`;
+
+  if (campSorted.length === 0) {
+    document.getElementById('kl-campaigns-table').innerHTML = '<div class="empty-msg">No sent campaigns in this period</div>';
+  } else {
+    const campTotalRecip  = campSorted.reduce((s, c) => s + (c.recipients  || 0), 0);
+    const campTotalOpens  = campSorted.reduce((s, c) => s + (c.opensUnique  || 0), 0);
+    const campTotalClicks = campSorted.reduce((s, c) => s + (c.clicksUnique || 0), 0);
+    const campTotalRev    = campSorted.reduce((s, c) => s + (c.revenue      || 0), 0);
+    const campAvgOpen  = campTotalRecip > 0 ? (campTotalOpens  / campTotalRecip * 100).toFixed(1) + '%' : '—';
+    const campAvgClick = campTotalRecip > 0 ? (campTotalClicks / campTotalRecip * 100).toFixed(1) + '%' : '—';
+    document.getElementById('kl-campaigns-table').innerHTML =
+      `<table class="data-table">
+        <thead><tr>
+          <th>Campaign</th><th>Send Date</th><th>Recipients</th><th>Open Rate</th><th>Click Rate</th><th>Revenue</th>
+        </tr></thead>
+        <tbody>${campSorted.map(c => `
+          <tr>
+            <td style="color:var(--white);font-weight:500;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name || '—'}</td>
+            <td style="color:var(--muted);">${fmtDate(c.sendTime)}</td>
+            <td style="color:var(--light);">${c.recipients > 0 ? fmtNum(c.recipients) : '—'}</td>
+            <td style="color:var(--light);">${c.openRate > 0 ? (c.openRate*100).toFixed(1)+'%' : '—'}</td>
+            <td style="color:var(--light);">${c.clickRate > 0 ? (c.clickRate*100).toFixed(1)+'%' : '—'}</td>
+            <td style="color:${c.revenue>0?'var(--green)':'var(--muted)'};font-family:var(--font-display);font-size:15px;font-weight:700;">${c.revenue>0?fmt$(c.revenue):'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot><tr>
+          <td>Totals / Avg</td>
+          <td style="color:var(--muted);">—</td>
+          <td>${campTotalRecip > 0 ? fmtNum(campTotalRecip) : '—'}</td>
+          <td>${campAvgOpen}</td>
+          <td>${campAvgClick}</td>
+          <td style="color:var(--green);">${campTotalRev > 0 ? fmt$(campTotalRev) : '—'}</td>
+        </tr></tfoot>
+      </table>`;
+  }
+
+  // Flows table
+  const flowsSorted = [...flowList].sort((a, b) => (b.revenue||0) - (a.revenue||0));
+  const flowBadge = document.getElementById('kl-flow-badge');
+  if (flowBadge) flowBadge.textContent = `${flowsSorted.length} flows`;
+
+  if (flowsSorted.length === 0) {
+    document.getElementById('kl-flow-rows').innerHTML = '<div class="empty-msg">No active flows found</div>';
+  } else {
+    const flowTotalRev   = flowsSorted.reduce((s, f) => s + (f.revenue    || 0), 0);
+    const flowTotalRecip = flowsSorted.reduce((s, f) => s + (f.recipients || 0), 0);
+    document.getElementById('kl-flow-rows').innerHTML =
+      `<table class="data-table">
+        <thead><tr>
+          <th>Flow</th><th>Status</th><th>Revenue</th><th>Recipients</th><th>Last Updated</th>
+        </tr></thead>
+        <tbody>${flowsSorted.map(f => `
+          <tr>
+            <td style="color:var(--white);font-weight:500;">${f.name || '—'}</td>
+            <td>${statusBadge(f.status)}</td>
+            <td style="color:${f.revenue>0?'var(--green)':'var(--muted)'};font-family:var(--font-display);font-size:15px;font-weight:700;">${f.revenue>0?fmt$(f.revenue):'—'}</td>
+            <td style="color:var(--light);">${f.recipients>0?fmtNum(f.recipients):'—'}</td>
+            <td style="color:var(--muted);">${fmtDate(f.updated)}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot><tr>
+          <td>Totals</td>
+          <td style="color:var(--muted);">—</td>
+          <td style="color:var(--green);">${flowTotalRev > 0 ? fmt$(flowTotalRev) : '—'}</td>
+          <td>${flowTotalRecip > 0 ? fmtNum(flowTotalRecip) : '—'}</td>
+          <td style="color:var(--muted);">—</td>
+        </tr></tfoot>
+      </table>`;
+  }
+}
+
+// ─── Overview: Klaviyo section ─────────────────────────────────────────────────
+function renderOverviewKlaviyo() {
+  if (!klaviyoData) return;
+  const campList  = getFilteredCampaigns();
+  const compCamps = getComparisonCampaigns();
+  const flowList  = klaviyoData.flows?.flows || [];
+
+  const n = campList.length;
+  const totalRevenue    = campList.reduce((s, c) => s + (c.revenue    || 0), 0);
+  const totalRecipients = campList.reduce((s, c) => s + (c.recipients || 0), 0);
+  const avgRevenue    = n > 0 ? totalRevenue    / n : 0;
+  const avgRecipients = n > 0 ? Math.round(totalRecipients / n) : 0;
+
+  setKpi('ov-lists', fmt$(avgRevenue));
+  setKpi('ov-subs',  fmtNum(avgRecipients));
+
+  if (compCamps && compareMode !== 'none') {
+    const cn   = compCamps.length;
+    const cRev = compCamps.reduce((s, c) => s + (c.revenue    || 0), 0);
+    const cRec = compCamps.reduce((s, c) => s + (c.recipients || 0), 0);
+    showDelta('ov-lists-delta', avgRevenue,    cn > 0 ? cRev / cn : 0);
+    showDelta('ov-subs-delta',  avgRecipients, cn > 0 ? Math.round(cRec / cn) : 0);
+  } else {
+    clearDelta('ov-lists-delta');
+    clearDelta('ov-subs-delta');
+  }
+
+  // Campaign revenue bar chart
+  renderKlCampaignChart(campList);
+
+  // Flow revenue bar chart
+  renderKlFlowChart(flowList);
+}
+
+// ─── Campaign Revenue Bar Chart ────────────────────────────────────────────────
+function renderKlCampaignChart(campaigns) {
+  if (klCampaignChart) { klCampaignChart.destroy(); klCampaignChart = null; }
+  const canvas = document.getElementById('ov-kl-campaign-chart');
+  if (!canvas) return;
+
+  const badge = document.getElementById('ov-kl-camp-badge');
+
+  const sorted = [...campaigns]
+    .filter(c => c.sendTime)
+    .sort((a, b) => new Date(a.sendTime) - new Date(b.sendTime))
+    .slice(-20);
+
+  if (sorted.length === 0) {
+    if (badge) badge.textContent = '0 campaigns';
+    canvas.getContext('2d');
+    return;
+  }
+  if (badge) badge.textContent = `${sorted.length} campaigns`;
+
+  const labels = sorted.map(c => fmtDate(c.sendTime));
+  const data   = sorted.map(c => c.revenue || 0);
+
+  const ctx = canvas.getContext('2d');
+  klCampaignChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: 'rgba(16,132,116,0.5)',
+        borderColor: '#108474',
+        borderWidth: 1,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1c1f22',
+          borderColor: '#2a2e33',
+          borderWidth: 1,
+          titleColor: '#f0f1f2',
+          bodyColor: '#9ca3af',
+          padding: 8,
+          callbacks: {
+            title: items => sorted[items[0].dataIndex]?.name || '',
+            label: ctx => ' ' + fmt$(ctx.parsed.y),
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { font: { size: 10 }, maxRotation: 40 }
+        },
+        y: {
+          grid: { color: 'rgba(42,46,51,0.8)' },
+          ticks: { font: { size: 10 }, callback: v => fmt$(v) }
+        }
+      }
+    }
+  });
+}
+
+// ─── Flow Revenue Bar Chart (horizontal) ───────────────────────────────────────
+function renderKlFlowChart(flows) {
+  if (klFlowChart) { klFlowChart.destroy(); klFlowChart = null; }
+  const canvas = document.getElementById('ov-kl-flow-chart');
+  if (!canvas) return;
+
+  const badge = document.getElementById('ov-kl-flow-badge');
+
+  const sorted = [...flows]
+    .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+    .slice(0, 8);
+
+  if (sorted.length === 0) {
+    if (badge) badge.textContent = '0 flows';
+    return;
+  }
+  if (badge) badge.textContent = `${sorted.length} flows`;
+
+  const ctx = canvas.getContext('2d');
+  klFlowChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(f => f.name || 'Unknown'),
+      datasets: [{
+        data: sorted.map(f => f.revenue || 0),
+        backgroundColor: accentColorAlpha(0.45),
+        borderColor: accentColor(),
+        borderWidth: 1,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1c1f22',
+          borderColor: '#2a2e33',
+          borderWidth: 1,
+          callbacks: { label: ctx => ' ' + fmt$(ctx.parsed.x) }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(42,46,51,0.8)' },
+          ticks: { font: { size: 10 }, callback: v => fmt$(v) }
+        },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// ─── Chart Modal ───────────────────────────────────────────────────────────────
+let modalChart = null;
+let modalCtx   = null;
+
+function renderInsightsMarkdown(text) {
+  if (!text) return '';
+  const inline = s => s
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+)\*/g,     '<em>$1</em>');
+  return text.trim().split(/\n{2,}/).map(block => {
+    block = block.trim();
+    if (!block) return '';
+    if (/^#{1,3}\s/.test(block))
+      return `<h5 class="ih">${inline(block.replace(/^#+\s*/, ''))}</h5>`;
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.every(l => /^[-*]\s/.test(l)))
+      return `<ul class="il">${lines.map(l => `<li>${inline(l.replace(/^[-*]\s+/,''))}</li>`).join('')}</ul>`;
+    return `<p>${inline(lines.join(' '))}</p>`;
+  }).filter(Boolean).join('');
+}
+
+function closeChartModal() {
+  document.getElementById('chart-modal').classList.remove('open');
+  if (modalChart) { modalChart.destroy(); modalChart = null; }
+  const wrap = document.getElementById('modal-insights-wrap');
+  if (wrap) { wrap.style.display = 'none'; document.getElementById('modal-insights-panel').innerHTML = ''; }
+  modalCtx = null;
+  const btn = document.getElementById('modal-insights-btn');
+  if (btn) { btn.disabled = false; btn.textContent = '✦ Insights'; }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('chat-modal').classList.contains('open')) closeChatModal();
+    else closeChartModal();
+  }
+});
+
+function openModal(title, chartConfig, tableHtml, stats, insightsCtx) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-table').innerHTML = tableHtml || '';
+  const statsEl = document.getElementById('modal-stats');
+  if (statsEl) {
+    if (stats && stats.length > 0) {
+      statsEl.style.display = '';
+      statsEl.innerHTML = stats.map(s =>
+        `<div class="modal-stat-item">
+          <div class="modal-stat-val"${s.color ? ` style="color:${s.color}"` : ''}>${s.value}</div>
+          <div class="modal-stat-lbl">${s.label}</div>
+        </div>`
+      ).join('');
+    } else {
+      statsEl.style.display = 'none';
+      statsEl.innerHTML = '';
+    }
+  }
+  // Reset insights panel for new modal
+  const wrap = document.getElementById('modal-insights-wrap');
+  if (wrap) { wrap.style.display = 'none'; document.getElementById('modal-insights-panel').innerHTML = ''; }
+  const btn = document.getElementById('modal-insights-btn');
+  if (btn) { btn.disabled = false; btn.textContent = '✦ Insights'; }
+  modalCtx = insightsCtx || null;
+  document.getElementById('chart-modal').classList.add('open');
+  if (modalChart) { modalChart.destroy(); modalChart = null; }
+  modalChart = new Chart(document.getElementById('modal-canvas').getContext('2d'), chartConfig);
+}
+
+function getShopifyMetricMeta() { return {
+  sales:         { title: 'Net Sales',          color: accentColor(), prefix: '$', get: d => d.revenue,                                                                      compGet: d => d.revenue },
+  orders:        { title: 'Orders',              color: '#108474', prefix: '',  get: d => d.orders,                                                                       compGet: d => d.orders },
+  aov:           { title: 'Avg Order Value',     color: '#FBCD0A', prefix: '$', get: d => d.aov,                                                                          compGet: d => d.aov },
+  newCustomers:  { title: 'New Customers',        color: '#3498db', prefix: '',  get: d => d.newCustomers,                                                                 compGet: d => d.newCustomers },
+  returningRate: { title: 'Returning Rate',       color: '#2ecc71', prefix: '%', get: d => d.orders > 0 ? parseFloat(((d.orders-d.newCustomers)/d.orders*100).toFixed(1)) : null,  compGet: d => d.orders > 0 ? parseFloat(((d.orders-d.newCustomers)/d.orders*100).toFixed(1)) : null },
+  checkoutConv:  { title: 'Checkout Completion %',  color: '#9b59b6', prefix: '%', get: d => d.checkoutConvRate,                                                            compGet: d => d.checkoutConvRate },
+}; }
+
+function fmtVal(v, prefix) {
+  if (v === null || v === undefined) return '—';
+  if (prefix === '$') return fmt$(v);
+  if (prefix === '%') return v.toFixed(1) + '%';
+  return fmtNum(v);
+}
+
+function fmtDelta(v, prefix) {
+  const sign = v >= 0 ? '+' : '-';
+  const abs  = Math.abs(v);
+  if (prefix === '$') {
+    const s = abs >= 1000000 ? (abs/1000000).toFixed(1)+'M' : abs >= 1000 ? (abs/1000).toFixed(1)+'K' : abs.toFixed(0);
+    return sign + '$' + s;
+  }
+  if (prefix === '%') return (v >= 0 ? '+' : '') + v.toFixed(1) + 'pp';
+  if (prefix === 'x') return (v >= 0 ? '+' : '') + v.toFixed(2) + 'x';
+  const s = abs >= 1000000 ? (abs/1000000).toFixed(1)+'M' : abs >= 1000 ? (abs/1000).toFixed(1)+'K' : String(Math.round(abs));
+  return sign + s;
+}
+
+function openGA4Modal(metric) {
+  if (!shopifyData || !ga4Data) return;
+  const { summary } = shopifyData;
+  const comp       = summary.comparison;
+  const compLabel  = getCompareLabel();
+  const ga4Comp    = (ga4Data.comparison && compareMode !== 'none') ? ga4Data.comparison : null;
+  const sessMap    = buildGA4SessionMap(ga4Data.daily);
+  const compSessMap = buildGA4SessionMap(ga4Comp?.daily);
+
+  const isSessions = (metric === 'sessions');
+  const title  = isSessions ? 'Sessions' : 'Conv. Rate';
+  const color  = isSessions ? '#e67e22' : '#1abc9c';
+  const prefix = isSessions ? '' : '%';
+
+  const dailyDates = summary.dailyData.map(d => d.date);
+  const data     = isSessions
+    ? dailyDates.map(dt => sessMap[dt] ?? null)
+    : dailyConvRate(summary.dailyData, sessMap);
+  const compData = comp
+    ? (isSessions
+        ? comp.dailyData.map(d => compSessMap[d.date] ?? null)
+        : dailyConvRate(comp.dailyData, compSessMap))
+    : null;
+
+  const labels = dailyDates.map(dt => new Date(dt+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+
+  const ctx  = document.getElementById('modal-canvas');
+  const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 360);
+  grad.addColorStop(0, color + '35');
+  grad.addColorStop(1, color + '00');
+  const datasets = [{
+    label: 'Current', data,
+    borderColor: color, backgroundColor: grad,
+    borderWidth: 2, tension: 0.4, fill: true, spanGaps: false,
+    pointRadius: summary.days > 60 ? 0 : 3, pointHoverRadius: 5,
+  }];
+  if (compData) datasets.push({
+    label: compLabel || 'Previous', data: compData,
+    borderColor: color + '70', backgroundColor: 'transparent',
+    borderWidth: 1.5, borderDash: [5,5], tension: 0.4, fill: false, spanGaps: false,
+    pointRadius: 0, pointHoverRadius: 4,
+  });
+
+  const chartConfig = {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: !!compData, labels: { boxWidth: 12, font: { size: 11 }, color: '#9ca3af' } },
+        tooltip: {
+          backgroundColor: '#1c1f22', borderColor: '#2a2e33', borderWidth: 1,
+          titleColor: '#f0f1f2', bodyColor: '#9ca3af', padding: 10,
+          callbacks: { label: c => ' ' + (c.dataset.label ? c.dataset.label+': ' : '') + fmtVal(c.parsed.y, prefix) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 11 } } },
+        y: {
+          beginAtZero: false,
+          afterDataLimits(scale) { const r = scale.max - scale.min; if (r > 0) { scale.min = Math.max(0, scale.min - r * 0.1); scale.max += r * 0.1; } },
+          grid: { color: 'rgba(42,46,51,0.8)' },
+          ticks: { maxTicksLimit: 6, font: { size: 11 }, callback: v => fmtVal(v, prefix) }
+        }
+      }
+    }
+  };
+
+  const fmtDateLong = d => new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+  let tableHtml;
+  if (compData) {
+    tableHtml = `<table class="data-table">
+      <thead><tr><th>Date</th><th>Current</th><th>${compLabel||'Previous'}</th><th>Change</th></tr></thead>
+      <tbody>${dailyDates.map((dt,i) => {
+        const cur = data[i], prev = compData[i];
+        let chg = '';
+        if (cur !== null && prev !== null && prev !== undefined && prev !== 0) {
+          const pct = ((cur-prev)/Math.abs(prev)*100).toFixed(1);
+          chg = `<span style="color:${pct>=0?'var(--green)':'var(--red-err)'}">${pct>=0?'↑':'↓'}${Math.abs(pct)}%</span>`;
+        }
+        return `<tr>
+          <td style="color:var(--muted);">${fmtDateLong(dt)}</td>
+          <td style="color:var(--white);font-family:var(--font-display);font-weight:700;">${fmtVal(cur,prefix)}</td>
+          <td style="color:var(--light);">${fmtVal(prev,prefix)}</td>
+          <td>${chg}</td></tr>`;
+      }).join('')}</tbody></table>`;
+  } else {
+    tableHtml = `<table class="data-table">
+      <thead><tr><th>Date</th><th>${title}</th></tr></thead>
+      <tbody>${dailyDates.map((dt,i) => `<tr>
+        <td style="color:var(--muted);">${fmtDateLong(dt)}</td>
+        <td style="color:var(--white);font-family:var(--font-display);font-weight:700;">${fmtVal(data[i],prefix)}</td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  const validData = data.filter(v => v !== null && !isNaN(v));
+  const total = validData.reduce((a,b) => a+b, 0);
+  const avg   = validData.length > 0 ? total / validData.length : 0;
+  const fmtMV = v => prefix === '%' ? v.toFixed(2) + '%' : fmtNum(v);
+  const stats = prefix === '%'
+    ? [{ label: 'Average', value: fmtMV(avg) }]
+    : [{ label: 'Total', value: fmtMV(total) }, { label: 'Avg / Day', value: fmtMV(avg) }];
+  if (compData) {
+    const validC = compData.filter(v => v !== null && !isNaN(v));
+    if (validC.length > 0) {
+      const compTotal = validC.reduce((a,b) => a+b, 0);
+      const compAvg   = compTotal / validC.length;
+      const cur  = prefix === '%' ? avg   : total;
+      const prev = prefix === '%' ? compAvg : compTotal;
+      const delta = cur - prev;
+      const pctChg = prev !== 0 ? (delta / Math.abs(prev) * 100) : 0;
+      const cl = delta >= 0 ? 'var(--green)' : 'var(--red-err)';
+      stats.push({ label: 'Change',   value: fmtDelta(delta, prefix), color: cl });
+      stats.push({ label: '% Change', value: (pctChg >= 0 ? '+' : '') + pctChg.toFixed(1) + '%', color: cl });
+    }
+  }
+  openModal(title, chartConfig, tableHtml, stats, {
+    type: 'timeseries', title, prefix,
+    isoLabels: dailyDates, values: data, compValues: compData, compLabel,
+    brand: activeBrand, dateRange: getRangeLabel(),
+  });
+}
+
+function openShopifyModal(metric) {
+  if (!shopifyData) return;
+  // GA4-sourced metrics need special handling
+  if (metric === 'sessions' || metric === 'convRate') {
+    return openGA4Modal(metric);
+  }
+  const { summary } = shopifyData;
+  const m    = getShopifyMetricMeta()[metric];
+  const comp = summary.comparison;
+  const compLabel = getCompareLabel();
+
+  const labels   = summary.dailyData.map(d => new Date(d.date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+  const data     = summary.dailyData.map(m.get);
+  const compData = comp ? comp.dailyData.map(m.compGet) : null;
+
+  const ctx  = document.getElementById('modal-canvas');
+  const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 360);
+  grad.addColorStop(0, m.color + '35');
+  grad.addColorStop(1, m.color + '00');
+
+  const datasets = [{
+    label: 'Current', data,
+    borderColor: m.color, backgroundColor: grad,
+    borderWidth: 2, tension: 0.4, fill: true, spanGaps: false,
+    pointRadius: summary.days > 60 ? 0 : 3, pointHoverRadius: 5,
+  }];
+  if (compData) datasets.push({
+    label: compLabel || 'Previous', data: compData,
+    borderColor: m.color + '70', backgroundColor: 'transparent',
+    borderWidth: 1.5, borderDash: [5,5], tension: 0.4, fill: false, spanGaps: false,
+    pointRadius: 0, pointHoverRadius: 4,
+  });
+
+  const chartConfig = {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: !!compData, labels: { boxWidth: 12, font: { size: 11 }, color: '#9ca3af' } },
+        tooltip: {
+          backgroundColor: '#1c1f22', borderColor: '#2a2e33', borderWidth: 1,
+          titleColor: '#f0f1f2', bodyColor: '#9ca3af', padding: 10,
+          callbacks: { label: c => ' ' + (c.dataset.label ? c.dataset.label+': ' : '') + fmtVal(c.parsed.y, m.prefix) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 11 } } },
+        y: {
+          beginAtZero: false,
+          afterDataLimits(scale) {
+            const range = scale.max - scale.min;
+            if (range > 0) {
+              scale.min = Math.max(0, scale.min - range * 0.1);
+              scale.max = scale.max + range * 0.1;
+            }
+          },
+          grid: { color: 'rgba(42,46,51,0.8)' },
+          ticks: { maxTicksLimit: 6, font: { size: 11 }, callback: v => fmtVal(v, m.prefix) }
+        }
+      }
+    }
+  };
+
+  const fmtDateLong = d => new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'});
+  let tableHtml;
+  if (compData) {
+    tableHtml = `<table class="data-table">
+      <thead><tr><th>Date</th><th>Current</th><th>${compLabel||'Previous'}</th><th>Change</th></tr></thead>
+      <tbody>${summary.dailyData.map((d,i) => {
+        const cur = data[i], prev = compData[i];
+        let chg = '';
+        if (cur !== null && prev !== null && prev !== undefined && prev !== 0) {
+          const pct = ((cur-prev)/Math.abs(prev)*100).toFixed(1);
+          chg = `<span style="color:${pct>=0?'var(--green)':'var(--red-err)'}">${pct>=0?'↑':'↓'}${Math.abs(pct)}%</span>`;
+        }
+        return `<tr>
+          <td style="color:var(--muted);">${fmtDateLong(d.date)}</td>
+          <td style="color:var(--white);font-family:var(--font-display);font-weight:700;">${fmtVal(cur,m.prefix)}</td>
+          <td style="color:var(--light);">${fmtVal(prev,m.prefix)}</td>
+          <td>${chg}</td></tr>`;
+      }).join('')}</tbody></table>`;
+  } else {
+    tableHtml = `<table class="data-table">
+      <thead><tr><th>Date</th><th>${m.title}</th></tr></thead>
+      <tbody>${summary.dailyData.map((d,i) => `<tr>
+        <td style="color:var(--muted);">${fmtDateLong(d.date)}</td>
+        <td style="color:var(--white);font-family:var(--font-display);font-weight:700;">${fmtVal(data[i],m.prefix)}</td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  const validData = data.filter(v => v !== null && !isNaN(v));
+  const total = validData.reduce((a, b) => a + b, 0);
+  const avg   = validData.length > 0 ? total / validData.length : 0;
+  const fmtMV = v => {
+    if (m.prefix === '$') return fmt$(v);
+    if (m.prefix === '%') return v.toFixed(1) + '%';
+    return fmtNum(v);
+  };
+  const stats = (m.prefix === '%')
+    ? [{ label: 'Average', value: fmtMV(avg) }]
+    : [{ label: 'Total', value: fmtMV(total) }, { label: 'Avg / Day', value: fmtMV(avg) }];
+  if (compData) {
+    const validC = compData.filter(v => v !== null && !isNaN(v));
+    if (validC.length > 0) {
+      const compTotal = validC.reduce((a, b) => a + b, 0);
+      const compAvg   = validC.length > 0 ? compTotal / validC.length : 0;
+      const cur  = (m.prefix === '%' || m.prefix === 'x') ? avg   : total;
+      const prev = (m.prefix === '%' || m.prefix === 'x') ? compAvg : compTotal;
+      const delta  = cur - prev;
+      const pctChg = prev !== 0 ? (delta / Math.abs(prev) * 100) : 0;
+      const color  = delta >= 0 ? 'var(--green)' : 'var(--red-err)';
+      stats.push({ label: 'Change',   value: fmtDelta(delta, m.prefix),                            color });
+      stats.push({ label: '% Change', value: (pctChg >= 0 ? '+' : '') + pctChg.toFixed(1) + '%',  color });
+    }
+  }
+  openModal(m.title, chartConfig, tableHtml, stats, {
+    type: 'timeseries', title: m.title, prefix: m.prefix,
+    isoLabels: summary.dailyData.map(d => d.date),
+    values: data, compValues: compData, compLabel,
+    brand: activeBrand, dateRange: getRangeLabel(),
+  });
+}
+
+function openCampaignModal() {
+  if (!klaviyoData) return;
+  const sorted = [...getFilteredCampaigns()]
+    .filter(c => c.sendTime)
+    .sort((a,b) => new Date(a.sendTime)-new Date(b.sendTime))
+    .slice(-20);
+
+  const chartConfig = {
+    type: 'bar',
+    data: { labels: sorted.map(c => fmtDate(c.sendTime)), datasets: [{
+      data: sorted.map(c => c.revenue||0),
+      backgroundColor: 'rgba(16,132,116,0.5)', borderColor: '#108474', borderWidth: 1, borderRadius: 3,
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor:'#1c1f22', borderColor:'#2a2e33', borderWidth:1, titleColor:'#f0f1f2', bodyColor:'#9ca3af', padding:10,
+          callbacks: { title: items => sorted[items[0].dataIndex]?.name||'', label: c => ' '+fmt$(c.parsed.y) } }
+      },
+      scales: {
+        x: { grid:{display:false}, ticks:{font:{size:10},maxRotation:40} },
+        y: { grid:{color:'rgba(42,46,51,0.8)'}, ticks:{font:{size:11},callback:v=>fmt$(v)} }
+      }
+    }
+  };
+
+  const tableHtml = sorted.length === 0 ? '<div class="empty-msg">No campaigns</div>' :
+    `<table class="data-table">
+      <thead><tr><th>Campaign</th><th>Send Date</th><th>Recipients</th><th>Open Rate</th><th>Click Rate</th><th>Revenue</th></tr></thead>
+      <tbody>${sorted.map(c=>`<tr>
+        <td style="color:var(--white);font-weight:500;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name||'—'}</td>
+        <td style="color:var(--muted);">${fmtDate(c.sendTime)}</td>
+        <td style="color:var(--light);">${c.recipients>0?fmtNum(c.recipients):'—'}</td>
+        <td style="color:var(--light);">${c.openRate>0?(c.openRate*100).toFixed(1)+'%':'—'}</td>
+        <td style="color:var(--light);">${c.clickRate>0?(c.clickRate*100).toFixed(1)+'%':'—'}</td>
+        <td style="color:${c.revenue>0?'var(--green)':'var(--muted)'};font-family:var(--font-display);font-size:15px;font-weight:700;">${c.revenue>0?fmt$(c.revenue):'—'}</td>
+      </tr>`).join('')}</tbody></table>`;
+
+  const revenues = sorted.map(c => c.revenue || 0);
+  const campTotal = revenues.reduce((a, b) => a + b, 0);
+  const campAvg   = revenues.length > 0 ? campTotal / revenues.length : 0;
+  openModal('Campaign Revenue', chartConfig, tableHtml, [
+    { label: 'Total Revenue', value: fmt$(campTotal) },
+    { label: 'Avg / Campaign', value: fmt$(campAvg) },
+    { label: 'Campaigns', value: String(revenues.length) },
+  ], {
+    type: 'bar-campaigns', title: 'Campaign Revenue',
+    items: sorted.map(c => ({ name: c.name, revenue: c.revenue || 0, openRate: c.openRate, clickRate: c.clickRate, recipients: c.recipients, sendTime: c.sendTime })),
+    brand: activeBrand, dateRange: getRangeLabel(),
+  });
+}
+
+function openFlowModal() {
+  if (!klaviyoData) return;
+  const sorted = [...(klaviyoData.flows?.flows||[])].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0,8);
+
+  const chartConfig = {
+    type: 'bar',
+    data: { labels: sorted.map(f=>f.name||'Unknown'), datasets: [{
+      data: sorted.map(f=>f.revenue||0),
+      backgroundColor: accentColorAlpha(0.45), borderColor: accentColor(), borderWidth: 1, borderRadius: 3,
+    }]},
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor:'#1c1f22', borderColor:'#2a2e33', borderWidth:1, callbacks:{label:c=>' '+fmt$(c.parsed.x)} }
+      },
+      scales: {
+        x: { grid:{color:'rgba(42,46,51,0.8)'}, ticks:{font:{size:11},callback:v=>fmt$(v)} },
+        y: { grid:{display:false}, ticks:{font:{size:11}} }
+      }
+    }
+  };
+
+  const tableHtml = sorted.length === 0 ? '<div class="empty-msg">No flows</div>' :
+    `<table class="data-table">
+      <thead><tr><th>Flow</th><th>Revenue</th><th>Recipients</th></tr></thead>
+      <tbody>${sorted.map(f=>`<tr>
+        <td style="color:var(--white);font-weight:500;">${f.name||'—'}</td>
+        <td style="color:${f.revenue>0?'var(--green)':'var(--muted)'};font-family:var(--font-display);font-size:15px;font-weight:700;">${f.revenue>0?fmt$(f.revenue):'—'}</td>
+        <td style="color:var(--light);">${f.recipients>0?fmtNum(f.recipients):'—'}</td>
+      </tr>`).join('')}</tbody></table>`;
+
+  const flowRevs = sorted.map(f => f.revenue || 0);
+  const flowTotal = flowRevs.reduce((a, b) => a + b, 0);
+  const flowAvg   = flowRevs.length > 0 ? flowTotal / flowRevs.length : 0;
+  openModal('Flow Revenue', chartConfig, tableHtml, [
+    { label: 'Total Revenue', value: fmt$(flowTotal) },
+    { label: 'Avg / Flow', value: fmt$(flowAvg) },
+    { label: 'Active Flows', value: String(flowRevs.length) },
+  ], {
+    type: 'bar-flows', title: 'Flow Revenue',
+    items: sorted.map(f => ({ name: f.name, revenue: f.revenue || 0, recipients: f.recipients })),
+    brand: activeBrand, dateRange: getRangeLabel(),
+  });
+}
+
+// ─── Meta Ads ─────────────────────────────────────────────────────────────────
+async function loadAds() {
+  if (activeBrand !== 'wiq') return;
+  const brandSnapshot = activeBrand;
+  const info = document.getElementById('ads-data-info');
+  try {
+    const compareParam = compareMode !== 'none' ? `&compare=${compareMode}` : '';
+    const res = await fetch('/api/ads/data?' + getDateParams() + compareParam);
+    const data = await res.json();
+    if (activeBrand !== brandSnapshot) return;
+    if (data.error) throw new Error(data.error);
+    adsData = data;
+    if (data.rowCount === 0) {
+      if (info) info.textContent = 'No data for this date range';
+      ['ads-spend','ads-revenue','ads-roas','ads-purchases','ads-clicks','ads-cpc','ads-impressions','ads-cpp'].forEach(id => setKpi(id, '—'));
+      Object.keys(adsCharts).forEach(id => { adsCharts[id].destroy(); delete adsCharts[id]; });
+      ['ads-campaigns-table','ads-adsets-table','ads-ads-table'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+      document.querySelectorAll('.panel-stats').forEach(el => { el.innerHTML = ''; });
+      ['ov-ads-spend','ov-ads-revenue','ov-ads-roas','ov-ads-cpp'].forEach(id => setKpi(id, '—'));
+      Object.keys(ovAdsCharts).forEach(id => { ovAdsCharts[id].destroy(); delete ovAdsCharts[id]; });
+      return;
+    }
+    renderAds();
+  } catch(e) {
+    if (activeBrand !== brandSnapshot) return;
+    console.error('Ads load error:', e);
+    if (info) info.textContent = 'Load error: ' + e.message;
+  }
+}
+
+function renderAds() {
+  if (!adsData || !adsData.totals) return;
+  renderOverviewAds();
+  const { totals, daily, campaigns, adsets = [], ads = [], rowCount } = adsData;
+  const comp        = adsData.comparison;
+  const compareLabel = getCompareLabel();
+
+  setKpi('ads-spend',       fmt$(totals.spend));
+  setKpi('ads-revenue',     fmt$(totals.revenue));
+  setKpi('ads-roas',        totals.roas.toFixed(2) + 'x');
+  setKpi('ads-purchases',   fmtNum(totals.purchases));
+  setKpi('ads-clicks',      fmtNum(totals.clicks));
+  setKpi('ads-cpc',         fmt$(totals.avgCpc));
+  setKpi('ads-impressions', fmtNum(totals.impressions));
+  setKpi('ads-cpp',         fmt$(totals.costPerPurchase));
+
+  if (comp && comp.totals && compareMode !== 'none') {
+    const ct = comp.totals;
+    showDelta('ads-spend-delta',       totals.spend,           ct.spend);
+    showDelta('ads-revenue-delta',     totals.revenue,         ct.revenue);
+    showDelta('ads-roas-delta',        totals.roas,            ct.roas);
+    showDelta('ads-purchases-delta',   totals.purchases,       ct.purchases);
+    showDelta('ads-clicks-delta',      totals.clicks,          ct.clicks);
+    showDelta('ads-cpc-delta',         totals.avgCpc,          ct.avgCpc);
+    showDelta('ads-impressions-delta', totals.impressions,     ct.impressions);
+    showDelta('ads-cpp-delta',         totals.costPerPurchase, ct.costPerPurchase);
+    if (comp.start && comp.end) {
+      const fmt = d => new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      updateRangeLabels(`vs. ${fmt(comp.start)} – ${fmt(comp.end)}`);
+    }
+  } else {
+    ['ads-spend-delta','ads-revenue-delta','ads-roas-delta','ads-purchases-delta',
+     'ads-clicks-delta','ads-cpc-delta','ads-impressions-delta','ads-cpp-delta'].forEach(clearDelta);
+    updateRangeLabels();
+  }
+
+  const info = document.getElementById('ads-data-info');
+  if (info) info.textContent = `${fmtNum(rowCount)} rows`;
+
+  const badge = document.getElementById('ads-camp-badge');
+  if (badge) badge.textContent = campaigns.length;
+  const adsetBadge = document.getElementById('ads-adset-badge');
+  if (adsetBadge) adsetBadge.textContent = adsets.length;
+  const adBadge = document.getElementById('ads-ad-badge');
+  if (adBadge) adBadge.textContent = ads.length;
+
+  const cd = (comp && compareMode !== 'none') ? comp.daily : null;
+  renderAdsChart('ads-chart-spend',       daily, d => d.spend,       '$',   false, cd, compareLabel);
+  renderAdsChart('ads-chart-revenue',     daily, d => d.revenue,     '$',   false, cd, compareLabel);
+  renderAdsChart('ads-chart-roas',        daily, d => d.roas,        'x',   false, cd, compareLabel);
+  renderAdsChart('ads-chart-purchases',   daily, d => d.purchases,   '',    true,  cd, compareLabel);
+  renderAdsChart('ads-chart-clicks',      daily, d => d.clicks,      '',    true,  cd, compareLabel);
+  renderAdsChart('ads-chart-impressions', daily, d => d.impressions, '',    true,  cd, compareLabel);
+
+  const tableEl = document.getElementById('ads-campaigns-table');
+  if (!tableEl) return;
+  tableEl.innerHTML = `<table class="data-table">
+    <thead><tr>
+      <th>Campaign</th>
+      <th style="text-align:right;">Spend</th>
+      <th style="text-align:right;">Revenue</th>
+      <th style="text-align:right;">ROAS</th>
+      <th style="text-align:right;">Purchases</th>
+      <th style="text-align:right;">Clicks</th>
+      <th style="text-align:right;">CPC</th>
+    </tr></thead>
+    <tbody>${campaigns.map(c => `<tr>
+      <td style="color:var(--white);font-weight:500;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;">${fmt$(c.spend)}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:${c.revenue>0?'var(--green)':'var(--muted)'};">${c.revenue>0?fmt$(c.revenue):'—'}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--accent);font-weight:700;">${c.roas>0?c.roas.toFixed(2)+'x':'—'}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${c.purchases>0?fmtNum(c.purchases):'—'}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${fmtNum(c.clicks)}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${c.cpc>0?fmt$(c.cpc):'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+
+  const adsetEl = document.getElementById('ads-adsets-table');
+  if (adsetEl) adsetEl.innerHTML = adsets.length === 0 ? '<div class="empty-msg">No data</div>' : `<table class="data-table">
+    <thead><tr>
+      <th>Ad Set</th>
+      <th style="text-align:right;">Spend</th>
+      <th style="text-align:right;">Revenue</th>
+      <th style="text-align:right;">ROAS</th>
+      <th style="text-align:right;">Purchases</th>
+      <th style="text-align:right;">Clicks</th>
+      <th style="text-align:right;">CPC</th>
+    </tr></thead>
+    <tbody>${adsets.map(a => `<tr>
+      <td style="color:var(--white);font-weight:500;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.name}">${a.name}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;">${fmt$(a.spend)}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:${a.revenue>0?'var(--green)':'var(--muted)'};">${a.revenue>0?fmt$(a.revenue):'—'}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--accent);font-weight:700;">${a.roas>0?a.roas.toFixed(2)+'x':'—'}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${a.purchases>0?fmtNum(a.purchases):'—'}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${fmtNum(a.clicks)}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${a.cpc>0?fmt$(a.cpc):'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+
+  const adsEl = document.getElementById('ads-ads-table');
+  if (adsEl) adsEl.innerHTML = ads.length === 0 ? '<div class="empty-msg">No data</div>' : `<table class="data-table">
+    <thead><tr>
+      <th>Ad Name</th>
+      <th>Ad Set</th>
+      <th style="text-align:right;">Spend</th>
+      <th style="text-align:right;">Revenue</th>
+      <th style="text-align:right;">ROAS</th>
+      <th style="text-align:right;">Purchases</th>
+      <th style="text-align:right;">Clicks</th>
+      <th style="text-align:right;">CPC</th>
+    </tr></thead>
+    <tbody>${ads.map(a => `<tr>
+      <td style="color:var(--white);font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.name}">${a.name}</td>
+      <td style="color:var(--muted);font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.adset}">${a.adset}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;">${fmt$(a.spend)}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:${a.revenue>0?'var(--green)':'var(--muted)'};">${a.revenue>0?fmt$(a.revenue):'—'}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--accent);font-weight:700;">${a.roas>0?a.roas.toFixed(2)+'x':'—'}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${a.purchases>0?fmtNum(a.purchases):'—'}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${fmtNum(a.clicks)}</td>
+      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${a.cpc>0?fmt$(a.cpc):'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderAdsChart(canvasId, daily, getValue, prefix, isInt, compDaily, compLabel) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  if (adsCharts[canvasId]) { adsCharts[canvasId].destroy(); delete adsCharts[canvasId]; }
+
+  const labels     = daily.map(d => d.date);
+  const values     = daily.map(getValue);
+  const compValues = compDaily ? compDaily.map(getValue) : null;
+  const accent     = accentColor();
+  const [r,g,b]   = [parseInt(accent.slice(1,3),16), parseInt(accent.slice(3,5),16), parseInt(accent.slice(5,7),16)];
+
+  const step = Math.max(1, Math.floor(labels.length / 8));
+  const displayLabels = labels.map((l, i) => i % step === 0 ? l.slice(5) : '');
+
+  const datasets = [{
+    label: 'Current',
+    data: values,
+    borderColor: accent,
+    backgroundColor: `rgba(${r},${g},${b},0.12)`,
+    borderWidth: 1.5,
+    pointRadius: 0,
+    fill: true,
+    tension: 0.3,
+  }];
+  if (compValues) {
+    datasets.push({
+      label: compLabel || 'Prior',
+      data: compValues,
+      borderColor: `rgba(${r},${g},${b},0.45)`,
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderDash: [3, 3],
+      pointRadius: 0,
+      fill: false,
+      tension: 0.3,
+    });
+  }
+
+  const statPrefix = prefix === 'x' ? 'x' : (isInt ? '' : '$');
+  adsCharts[canvasId] = new Chart(canvas, {
+    type: 'line',
+    data: { labels: displayLabels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: !!compValues, labels: { boxWidth: 10, font: { size: 10 }, color: '#6b7280' } },
+        tooltip: {
+          callbacks: {
+            title: (items) => labels[items[0].dataIndex],
+            label: (item) => {
+              const v = item.raw;
+              const lbl = item.dataset.label ? item.dataset.label + ': ' : '';
+              if (prefix === '$') return ' ' + lbl + fmt$(v);
+              if (prefix === 'x') return ' ' + lbl + v.toFixed(2) + 'x';
+              if (isInt) return ' ' + lbl + fmtNum(v);
+              return ' ' + lbl + v.toFixed(2);
+            }
+          }
+        }
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          display: false,
+          afterDataLimits(scale) {
+            const range = scale.max - scale.min;
+            scale.max += range * 0.1;
+            scale.min = Math.max(0, scale.min - range * 0.1);
+          }
+        }
+      }
+    }
+  });
+  setChartStats(canvasId, values, statPrefix, compValues);
+}
+
+async function uploadAdsCsv(input) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  const label = document.getElementById('ads-upload-label');
+  const info  = document.getElementById('ads-data-info');
+  if (label) label.classList.add('uploading');
+  if (info)  info.textContent = 'Uploading…';
+  try {
+    const text = await file.text();
+    const res = await fetch('/api/ads/upload?brand=wiq', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: text,
+    });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    if (info) info.textContent = `Added ${fmtNum(result.added)} new rows (${fmtNum(result.total)} total)`;
+    await loadAds();
+    delete insightThreads[insightKey('ads')];
+    delete insightThreads[insightKey('overview')];
+    runInsights('ads');
+    runInsights('overview');
+  } catch(e) {
+    if (info) info.textContent = 'Upload failed: ' + e.message;
+  } finally {
+    if (label) label.classList.remove('uploading');
+    input.value = '';
+  }
+}
+
+// ─── Ads modal ────────────────────────────────────────────────────────────────
+const ADS_METRIC_META = {
+  spend:       { title: 'Daily Spend',       color: null, prefix: '$',  get: d => d.spend       },
+  revenue:     { title: 'Daily Revenue',     color: '#2ecc71', prefix: '$',  get: d => d.revenue     },
+  roas:        { title: 'Purchase ROAS',     color: '#3498db', prefix: 'x',  get: d => d.roas        },
+  purchases:   { title: 'Daily Purchases',   color: '#9b59b6', prefix: '',   get: d => d.purchases   },
+  clicks:      { title: 'Daily Clicks',      color: '#FBCD0A', prefix: '',   get: d => d.clicks      },
+  impressions: { title: 'Daily Impressions', color: '#108474', prefix: '',   get: d => d.impressions },
+};
+
+function openAdsModal(metric) {
+  if (!adsData || !adsData.daily || adsData.daily.length === 0) return;
+  const m          = ADS_METRIC_META[metric];
+  const color      = m.color || accentColor();
+  const daily      = adsData.daily;
+  const comp       = adsData.comparison;
+  const compLabel  = getCompareLabel();
+  const compDaily  = (comp && compareMode !== 'none') ? comp.daily : null;
+  const labels     = daily.map(d => new Date(d.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+  const values     = daily.map(m.get);
+  const compValues = compDaily ? compDaily.map(m.get) : null;
+
+  const ctx  = document.getElementById('modal-canvas');
+  const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 360);
+  grad.addColorStop(0, color + '35');
+  grad.addColorStop(1, color + '00');
+
+  const datasets = [{
+    label: 'Current', data: values,
+    borderColor: color, backgroundColor: grad,
+    borderWidth: 2, tension: 0.4, fill: true, spanGaps: false,
+    pointRadius: daily.length > 60 ? 0 : 3, pointHoverRadius: 5,
+  }];
+  if (compValues) {
+    datasets.push({
+      label: compLabel || 'Prior', data: compValues,
+      borderColor: color + '70', backgroundColor: 'transparent',
+      borderWidth: 1.5, borderDash: [5, 5], tension: 0.4, fill: false, spanGaps: false,
+      pointRadius: 0, pointHoverRadius: 4,
+    });
+  }
+
+  const chartConfig = {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: !!compValues, labels: { boxWidth: 12, font: { size: 11 }, color: '#9ca3af' } },
+        tooltip: {
+          backgroundColor: '#1c1f22', borderColor: '#2a2e33', borderWidth: 1,
+          titleColor: '#f0f1f2', bodyColor: '#9ca3af', padding: 10,
+          callbacks: { label: c => ' ' + (c.dataset.label ? c.dataset.label + ': ' : '') + fmtVal(c.parsed.y, m.prefix) }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 11 } } },
+        y: {
+          beginAtZero: false,
+          afterDataLimits(scale) {
+            const range = scale.max - scale.min;
+            if (range > 0) { scale.min = Math.max(0, scale.min - range * 0.1); scale.max += range * 0.1; }
+          },
+          grid: { color: 'rgba(42,46,51,0.8)' },
+          ticks: { maxTicksLimit: 6, font: { size: 11 }, callback: v => fmtVal(v, m.prefix) }
+        }
+      }
+    }
+  };
+
+  const fmtDateLong = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+  let tableHtml;
+  if (compValues) {
+    tableHtml = `<table class="data-table">
+      <thead><tr><th>Date</th><th>Current</th><th>${compLabel||'Prior'}</th><th>Change</th></tr></thead>
+      <tbody>${daily.map((d, i) => {
+        const cur = values[i], prev = compValues[i];
+        let chg = '';
+        if (cur != null && prev != null && prev !== 0) {
+          const pct = ((cur - prev) / Math.abs(prev) * 100).toFixed(1);
+          chg = `<span style="color:${pct>=0?'var(--green)':'var(--red-err)'}">${pct>=0?'↑':'↓'}${Math.abs(pct)}%</span>`;
+        }
+        return `<tr>
+          <td style="color:var(--muted);">${fmtDateLong(d.date)}</td>
+          <td style="color:var(--white);font-family:var(--font-display);font-weight:700;">${fmtVal(cur, m.prefix)}</td>
+          <td style="color:var(--light);">${fmtVal(prev, m.prefix)}</td>
+          <td>${chg}</td></tr>`;
+      }).join('')}</tbody></table>`;
+  } else {
+    tableHtml = `<table class="data-table">
+      <thead><tr><th>Date</th><th>${m.title}</th></tr></thead>
+      <tbody>${daily.map((d, i) => `<tr>
+        <td style="color:var(--muted);">${fmtDateLong(d.date)}</td>
+        <td style="color:var(--white);font-family:var(--font-display);font-weight:700;">${fmtVal(values[i], m.prefix)}</td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  const validVals = values.filter(v => v !== null && !isNaN(v));
+  const adsTotal  = validVals.reduce((a, b) => a + b, 0);
+  const adsAvg    = validVals.length > 0 ? adsTotal / validVals.length : 0;
+  const fmtAV = v => {
+    if (m.prefix === '$') return fmt$(v);
+    if (m.prefix === 'x') return v.toFixed(2) + 'x';
+    return fmtNum(v);
+  };
+  const adsStats = (m.prefix === 'x')
+    ? [{ label: 'Average', value: fmtAV(adsAvg) }]
+    : [{ label: 'Total', value: fmtAV(adsTotal) }, { label: 'Avg / Day', value: fmtAV(adsAvg) }];
+  if (compValues) {
+    const validC    = compValues.filter(v => v !== null && !isNaN(v));
+    const compTotal = validC.reduce((a, b) => a + b, 0);
+    const compAvg   = validC.length > 0 ? compTotal / validC.length : 0;
+    const cur  = m.prefix === 'x' ? adsAvg   : adsTotal;
+    const prev = m.prefix === 'x' ? compAvg  : compTotal;
+    const delta  = cur - prev;
+    const pctChg = prev !== 0 ? (delta / Math.abs(prev) * 100) : 0;
+    const color  = delta >= 0 ? 'var(--green)' : 'var(--red-err)';
+    adsStats.push({ label: 'Change',   value: fmtDelta(delta, m.prefix),                           color });
+    adsStats.push({ label: '% Change', value: (pctChg >= 0 ? '+' : '') + pctChg.toFixed(1) + '%', color });
+  }
+  openModal(m.title, chartConfig, tableHtml, adsStats, {
+    type: 'timeseries', title: m.title, prefix: m.prefix,
+    isoLabels: daily.map(d => d.date),
+    values, compValues, compLabel,
+    brand: activeBrand, dateRange: getRangeLabel(),
+  });
+}
+
+// ─── Insights ─────────────────────────────────────────────────────────────────
+function buildInsightsPayload(tab) {
+  const payload = { tab, brand: activeBrand, dateRange: getRangeLabel() };
+
+  if (tab === 'overview' || tab === 'shopify') {
+    const s = shopifyData?.summary;
+    if (s) {
+      const c = s.comparison;
+      payload.shopify = {
+        revenue: s.totalRevenue, orders: s.orderCount, aov: s.aov,
+        newCustomers: s.newCustomerOrders, returningRate: s.returningRate,
+        checkoutConvRate: s.checkoutConvRate, days: s.days,
+        comp: c ? { revenue: c.totalRevenue, orders: c.orderCount, aov: c.aov,
+                    newCustomers: c.newCustomerOrders, returningRate: c.returningRate } : null,
+        dailyData: (s.dailyData || []).slice(0, 90).map(d => ({ date: d.date, revenue: d.revenue, orders: d.orders })),
+        topProducts: (shopifyData.products?.products || []).slice(0, 8).map(p => ({ title: p.title, revenue: p.revenue })),
+      };
+    }
+  }
+
+  if (tab === 'overview' || tab === 'klaviyo') {
+    if (klaviyoData) {
+      const camps = klaviyoData.campaigns?.campaigns || [];
+      const flows = klaviyoData.flows?.flows || [];
+      payload.klaviyo = {
+        emailRevenue:   camps.reduce((s, c) => s + (c.revenue   || 0), 0) + flows.reduce((s, f) => s + (f.revenue || 0), 0),
+        campaignCount:  camps.length,
+        activeFlows:    flows.length,
+        avgRecipients:  camps.length > 0 ? Math.round(camps.reduce((s, c) => s + (c.recipients || 0), 0) / camps.length) : 0,
+        campaigns: camps.slice(0, 10).map(c => ({ name: c.name, revenue: c.revenue, recipients: c.recipients, openRate: c.openRate, clickRate: c.clickRate })),
+        flows:     flows.slice(0, 8).map(f => ({ name: f.name, revenue: f.revenue })),
+      };
+    }
+  }
+
+  if ((tab === 'ads' || tab === 'overview') && adsData?.totals) {
+    payload.ads = {
+      ...adsData.totals,
+      campaigns:   (adsData.campaigns || []).slice(0, 10),
+      dailyRecent: (adsData.daily || []).slice(-30).map(d => ({ date: d.date, spend: d.spend, revenue: d.revenue, roas: d.roas })),
+    };
+  }
+
+  return payload;
+}
+
+// insightThreads — keyed by `${brand}:${tab}` or `${brand}:modal:${title}`
+// Each entry: { text: string, messages: [{role, content}], payload: object }
+const insightThreads = {};
+
+function insightKey(tab) {
+  return `${activeBrand}:${tab}`;
+}
+function modalInsightKey() {
+  return `${activeBrand}:modal:${(modalCtx?.title||'').replace(/\s+/g,'_')}`;
+}
+
+function renderInsightPanel(tab) {
+  const panel = document.getElementById(`insights-${tab}`);
+  if (!panel) return;
+  const state = insightThreads[insightKey(tab)];
+  if (!state) return;
+  panel.innerHTML = buildInsightPanelHtml(state, tab, false);
+}
+
+function renderModalInsightPanel() {
+  const panel = document.getElementById('modal-insights-panel');
+  if (!panel) return;
+  const state = insightThreads[modalInsightKey()];
+  if (!state) return;
+  panel.innerHTML = buildInsightPanelHtml(state, 'modal', true);
+}
+
+function buildInsightPanelHtml(state, tabOrModal, isModal) {
+  const idSuffix = isModal ? 'modal' : tabOrModal;
+  const clearFn  = isModal ? 'clearModalInsights()' : `clearInsights('${tabOrModal}')`;
+  const threadHtml = state.messages.map(m => {
+    if (m.role === 'user') {
+      return `<div class="ir-user"><span class="ir-you">You</span>${escHtml(m.content)}</div>`;
+    }
+    return `<div class="ir-reply">${renderInsightsMarkdown(m.content)}</div>`;
+  }).join('');
+
+  const sendFn = isModal ? 'sendModalInsightReply()' : `sendInsightReply('${tabOrModal}')`;
+  return `
+    <div style="display:flex;align-items:flex-start;gap:10px;">
+      <div style="flex:1;">${renderInsightsMarkdown(state.text)}</div>
+      <button class="insights-btn" style="flex-shrink:0;opacity:0.6;font-size:11px;padding:3px 8px;" onclick="${clearFn}" title="Clear insights">✕ Clear</button>
+    </div>
+    ${state.messages.length > 0 ? `<div class="ir-thread">${threadHtml}</div>` : ''}
+    <div class="ir-input-row">
+      <input class="ir-input" id="ir-input-${idSuffix}"
+        placeholder="Follow up on these insights…"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();${sendFn};}" />
+      <button class="ir-btn" id="ir-btn-${idSuffix}" onclick="${sendFn}">→</button>
+    </div>`;
+}
+
+function clearInsights(tab) {
+  delete insightThreads[insightKey(tab)];
+  const panel = document.getElementById(`insights-${tab}`);
+  if (panel) panel.innerHTML = '';
+  const btn = document.getElementById(`insights-btn-${tab}`);
+  if (btn) btn.disabled = false;
+}
+
+function clearModalInsights() {
+  const key = modalInsightKey();
+  delete insightThreads[key];
+  renderModalInsightPanel();
+  const btn = document.getElementById('modal-insights-btn');
+  if (btn) btn.disabled = false;
+}
+
+async function sendInsightReply(tab) {
+  const input = document.getElementById(`ir-input-${tab}`);
+  const btn   = document.getElementById(`ir-btn-${tab}`);
+  if (!input || !btn) return;
+  const text = input.value.trim();
+  if (!text || btn.disabled) return;
+
+  const key   = insightKey(tab);
+  const state = insightThreads[key];
+  if (!state) return;
+
+  input.value   = '';
+  btn.disabled  = true;
+  input.disabled = true;
+  state.messages.push({ role: 'user', content: text });
+  renderInsightPanel(tab);
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...state.payload, insightText: state.text, messages: state.messages }),
+    });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    state.messages.push({ role: 'assistant', content: result.reply });
+  } catch(e) {
+    state.messages.push({ role: 'assistant', content: `Error: ${escHtml(e.message)}` });
+  } finally {
+    renderInsightPanel(tab);
+    const ni = document.getElementById(`ir-input-${tab}`);
+    const nb = document.getElementById(`ir-btn-${tab}`);
+    if (ni) { ni.disabled = false; ni.focus(); }
+    if (nb)   nb.disabled = false;
+  }
+}
+
+async function sendModalInsightReply() {
+  const input = document.getElementById('ir-input-modal');
+  const btn   = document.getElementById('ir-btn-modal');
+  if (!input || !btn) return;
+  const text = input.value.trim();
+  if (!text || btn.disabled) return;
+
+  const key   = modalInsightKey();
+  const state = insightThreads[key];
+  if (!state) return;
+
+  input.value   = '';
+  btn.disabled  = true;
+  input.disabled = true;
+  state.messages.push({ role: 'user', content: text });
+  renderModalInsightPanel();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...state.payload, insightText: state.text, messages: state.messages }),
+    });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    state.messages.push({ role: 'assistant', content: result.reply });
+  } catch(e) {
+    state.messages.push({ role: 'assistant', content: `Error: ${escHtml(e.message)}` });
+  } finally {
+    renderModalInsightPanel();
+    const ni = document.getElementById('ir-input-modal');
+    const nb = document.getElementById('ir-btn-modal');
+    if (ni) { ni.disabled = false; ni.focus(); }
+    if (nb)   nb.disabled = false;
+  }
+}
+
+async function runInsights(tab) {
+  const btn   = document.getElementById(`insights-btn-${tab}`);
+  const panel = document.getElementById(`insights-${tab}`);
+  if (!btn || !panel) return;
+
+  btn.disabled = true;
+  btn.textContent = '↻ Analyzing…';
+  panel.innerHTML = '<span class="insights-loading">Analyzing your data…</span>';
+  panel.classList.add('visible');
+
+  const payload = buildInsightsPayload(tab);
+  try {
+    const res = await fetch('/api/insights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    insightThreads[insightKey(tab)] = { text: result.insights, messages: [], payload };
+    renderInsightPanel(tab);
+  } catch(e) {
+    panel.innerHTML = `<p style="color:var(--red-err);">Error: ${e.message}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✦ Insights';
+  }
+}
+
+async function runModalInsights() {
+  const btn   = document.getElementById('modal-insights-btn');
+  const panel = document.getElementById('modal-insights-panel');
+  const wrap  = document.getElementById('modal-insights-wrap');
+  if (!btn || !panel || !modalCtx) return;
+  btn.disabled = true;
+  btn.textContent = '↻ Analyzing…';
+  panel.innerHTML = '<span class="insights-loading">Analyzing…</span>';
+  wrap.style.display = '';
+
+  const payload = {
+    tab: 'modal',
+    brand: modalCtx.brand || activeBrand,
+    dateRange: modalCtx.dateRange || getRangeLabel(),
+    modal: modalCtx,
+  };
+  try {
+    const res = await fetch('/api/insights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    insightThreads[modalInsightKey()] = { text: result.insights, messages: [], payload };
+    renderModalInsightPanel();
+  } catch(e) {
+    panel.innerHTML = `<p style="color:var(--red-err);">Error: ${e.message}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✦ Insights';
+  }
+}
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+const chatSessions = {};
+let chatTab = null;
+
+function chatSessionKey() {
+  if (chatTab === 'modal') return `${activeBrand}:modal:${(modalCtx?.title||'').replace(/\s+/g,'_')}`;
+  return `${activeBrand}:${chatTab}`;
+}
+
+function getBrandDisplayName() {
+  return { ra: 'Real Avid', wiq: 'Work IQ Tools', oe: 'Outdoor Edge' }[activeBrand] || activeBrand;
+}
+
+function openChatModal(tab) {
+  chatTab = tab;
+  const key = chatSessionKey();
+  if (!chatSessions[key]) chatSessions[key] = { messages: [], payload: null };
+  chatSessions[key].payload = buildInsightsPayload(tab);
+  const labels = { overview: 'Overview', shopify: 'Shopify', klaviyo: 'Klaviyo', ads: 'Meta Ads' };
+  document.getElementById('chat-modal-title').textContent = getBrandDisplayName();
+  document.getElementById('chat-modal-subtitle').textContent = `${labels[tab] || tab} · ${getRangeLabel()}`;
+  document.getElementById('chat-modal').classList.add('open');
+  renderChatMessages();
+  setTimeout(() => document.getElementById('chat-textarea').focus(), 60);
+}
+
+function openModalChat() {
+  if (!modalCtx) return;
+  chatTab = 'modal';
+  const key = chatSessionKey();
+  if (!chatSessions[key]) chatSessions[key] = { messages: [], payload: null };
+  chatSessions[key].payload = {
+    tab: 'modal', brand: modalCtx.brand || activeBrand,
+    dateRange: modalCtx.dateRange || getRangeLabel(),
+    modal: modalCtx,
+  };
+  document.getElementById('chat-modal-title').textContent = modalCtx.title || 'Chart';
+  document.getElementById('chat-modal-subtitle').textContent = modalCtx.dateRange || getRangeLabel();
+  document.getElementById('chat-modal').classList.add('open');
+  renderChatMessages();
+  setTimeout(() => document.getElementById('chat-textarea').focus(), 60);
+}
+
+function closeChatModal() {
+  document.getElementById('chat-modal').classList.remove('open');
+}
+
+function clearChatSession() {
+  const key = chatSessionKey();
+  if (chatSessions[key]) chatSessions[key].messages = [];
+  renderChatMessages();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderChatMessages() {
+  const key  = chatSessionKey();
+  const msgs = chatSessions[key]?.messages || [];
+  const el   = document.getElementById('chat-messages');
+  if (!el) return;
+
+  if (msgs.length === 0) {
+    el.innerHTML = `
+      <div class="chat-empty-state">
+        <div class="chat-empty-icon">◎</div>
+        <div class="chat-empty-text">Ask anything about the data currently displayed.</div>
+        <div class="chat-empty-hint">Enter to send · Shift+Enter for new line</div>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = msgs.map(m => {
+    const role = m.role === 'user' ? 'user' : (m.thinking ? 'assistant thinking' : 'assistant');
+    const body = m.role === 'assistant' && !m.thinking
+      ? renderInsightsMarkdown(m.content)
+      : `<p>${escHtml(m.content)}</p>`;
+    return `<div class="chat-msg ${role}"><div class="chat-bubble">${body}</div></div>`;
+  }).join('');
+
+  el.scrollTop = el.scrollHeight;
+}
+
+function chatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+}
+
+async function sendChat() {
+  const textarea = document.getElementById('chat-textarea');
+  const sendBtn  = document.getElementById('chat-send-btn');
+  const text     = textarea.value.trim();
+  if (!text || sendBtn.disabled) return;
+
+  const key = chatSessionKey();
+  if (!chatSessions[key]) chatSessions[key] = { messages: [], payload: buildInsightsPayload(chatTab) };
+  const session = chatSessions[key];
+
+  textarea.value = '';
+  session.messages.push({ role: 'user', content: text });
+  session.messages.push({ role: 'assistant', content: 'Thinking…', thinking: true });
+  renderChatMessages();
+
+  sendBtn.disabled  = true;
+  textarea.disabled = true;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(session.payload || {}),
+        messages: session.messages.filter(m => !m.thinking),
+      }),
+    });
+    const result = await res.json();
+    session.messages = session.messages.filter(m => !m.thinking);
+    if (result.error) throw new Error(result.error);
+    session.messages.push({ role: 'assistant', content: result.reply });
+  } catch(e) {
+    session.messages = session.messages.filter(m => !m.thinking);
+    session.messages.push({ role: 'assistant', content: `Sorry, something went wrong: ${escHtml(e.message)}` });
+  } finally {
+    sendBtn.disabled  = false;
+    textarea.disabled = false;
+    textarea.focus();
+    renderChatMessages();
+  }
+}
+
+// ─── Load All + Auto Insights ──────────────────────────────────────────────────
+async function loadAll() {
+  const brandSnapshot = activeBrand;
+  // Clear existing insight threads so fresh ones generate after load
+  ['overview', 'shopify', 'klaviyo', 'ads'].forEach(tab => {
+    delete insightThreads[`${brandSnapshot}:${tab}`];
+    const panel = document.getElementById(`insights-${tab}`);
+    if (panel) { panel.innerHTML = ''; panel.classList.remove('visible'); }
+    const ibtn = document.getElementById(`insights-btn-${tab}`);
+    if (ibtn) { ibtn.disabled = false; ibtn.textContent = '✦ Insights'; }
+  });
+  const tasks = [loadShopify(), loadKlaviyo()];
+  if (brandSnapshot === 'wiq') tasks.push(loadAds());
+  await Promise.all(tasks);
+  if (activeBrand !== brandSnapshot) return;
+  runInsights('overview');
+  runInsights('shopify');
+  runInsights('klaviyo');
+  if (brandSnapshot === 'wiq') runInsights('ads');
+}
+
+// ─── Refresh All ───────────────────────────────────────────────────────────────
+async function refreshAll() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = '↻ Loading…';
+  updateRangeLabels();
+  await Promise.all([checkHealth(), loadAll()]);
+  btn.disabled = false;
+  btn.textContent = '↻ Refresh';
+}
+
+// ─── Dev Feedback ──────────────────────────────────────────────────────────────
+const devFeedbackCache = {};
+
+function renderDevFeedbackMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^(\d+)\.\s+/gm, '<li>').replace(/(<li>.*)/gm, (m) => m)
+    .replace(/(?:^|\n)(<li>)/g, '<li>')
+    .replace(/<li>([\s\S]*?)(?=<li>|$)/g, (m, c) => `<li>${c.trimEnd()}</li>`)
+    .replace(/(<li>.*<\/li>)+/s, m => `<ol>${m}</ol>`)
+    .replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>')
+    .replace(/^(.)/,'<p>$1').replace(/(.)$/,'$1</p>');
+}
+
+async function runDevFeedback(tab) {
+  const btn   = document.getElementById(`df-btn-${tab}`);
+  const panel = document.getElementById(`df-panel-${tab}`);
+  if (!btn || !panel) return;
+  btn.disabled = true;
+  btn.textContent = 'Analyzing…';
+  panel.innerHTML = '<span class="insights-loading">Reviewing dashboard layout…</span>';
+
+  const payload = buildInsightsPayload(tab);
+
+  try {
+    const res = await fetch('/api/devfeedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    devFeedbackCache[`${activeBrand}:${tab}`] = result.feedback;
+    panel.innerHTML = renderDevFeedbackMarkdown(result.feedback);
+  } catch(e) {
+    panel.innerHTML = `<span style="color:var(--red-err)">Error: ${escHtml(e.message)}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Regenerate';
+  }
+}
+
+updateRangeLabels();
+updateAdsTabVisibility();
+refreshAll();
+</script>
+</body>
+</html>
