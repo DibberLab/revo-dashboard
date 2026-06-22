@@ -3,10 +3,102 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs   = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+const AUTH_USER   = process.env.DASHBOARD_USER   || 'admin';
+const AUTH_PASS   = process.env.DASHBOARD_PASS   || '';
+const AUTH_SECRET = process.env.SESSION_SECRET   || 'change-me';
+
+function makeToken() {
+  return crypto.createHmac('sha256', AUTH_SECRET).update(AUTH_USER + ':' + AUTH_PASS).digest('hex');
+}
+
+function getCookies(req) {
+  return (req.headers.cookie || '').split(';').reduce((acc, c) => {
+    const [k, ...v] = c.trim().split('=');
+    if (k) acc[k] = decodeURIComponent(v.join('='));
+    return acc;
+  }, {});
+}
+
+function isAuthed(req) {
+  return getCookies(req)['auth_token'] === makeToken();
+}
+
+const LOGIN_PAGE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login — Revo Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #161616; border: 1px solid #252525; border-radius: 14px; padding: 40px 36px; width: 360px; max-width: calc(100vw - 32px); }
+    .logo { font-size: 20px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; margin-bottom: 4px; }
+    .logo span { color: #28a06e; }
+    .subtitle { color: #555; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 32px; }
+    label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #666; margin-bottom: 6px; }
+    input[type=text], input[type=password] { display: block; width: 100%; background: #0d0d0d; border: 1px solid #252525; border-radius: 7px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; margin-bottom: 16px; outline: none; transition: border-color .15s; }
+    input:focus { border-color: #28a06e; }
+    button { width: 100%; background: #28a06e; border: none; border-radius: 7px; padding: 11px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.05em; transition: background .15s; margin-top: 4px; }
+    button:hover { background: #1f8a5e; }
+    .err { color: #e74c3c; font-size: 13px; margin-bottom: 16px; display: none; }
+    .err.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Revo<span>Brands</span></div>
+    <div class="subtitle">Analytics Dashboard</div>
+    <div class="err" id="err">Incorrect username or password.</div>
+    <form method="POST" action="/login">
+      <label for="u">Username</label>
+      <input type="text" id="u" name="username" autocomplete="username" required autofocus>
+      <label for="p">Password</label>
+      <input type="password" id="p" name="password" autocomplete="current-password" required>
+      <button type="submit">Sign In</button>
+    </form>
+  </div>
+  <script>if (new URLSearchParams(location.search).get('error')) document.getElementById('err').classList.add('show');</script>
+</body>
+</html>`;
+
+app.get('/login', (req, res) => {
+  if (isAuthed(req)) return res.redirect('/');
+  res.setHeader('Content-Type', 'text/html');
+  res.send(LOGIN_PAGE);
+});
+
+app.post('/login', (req, res) => {
+  const { username, password } = req.body || {};
+  if (username === AUTH_USER && password === AUTH_PASS) {
+    const token = makeToken();
+    res.setHeader('Set-Cookie', `auth_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+    res.redirect('/');
+  } else {
+    res.redirect('/login?error=1');
+  }
+});
+
+app.get('/logout', (req, res) => {
+  res.setHeader('Set-Cookie', 'auth_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
+  res.redirect('/login');
+});
+
+function requireAuth(req, res, next) {
+  if (isAuthed(req)) return next();
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Unauthorized' });
+  res.redirect('/login');
+}
+app.use(requireAuth);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
@@ -541,12 +633,79 @@ app.get('/api/email/flows', async (req, res) => {
   }
 });
 
+app.get('/api/email/top-products', async (req, res) => {
+  try {
+    const b = getBrand(req);
+
+    // Find all "Ordered Product" metric IDs (fires once per line item, has Name/Quantity/$value)
+    if (!b._orderedProductIds) {
+      const metricsData = await klaviyoFetch(b, 'metrics/');
+      b._orderedProductIds = (metricsData.data || [])
+        .filter(m => m.attributes?.name === 'Ordered Product')
+        .map(m => m.id);
+    }
+    const metricIds = b._orderedProductIds;
+    if (!metricIds.length) return res.json({ products: [] });
+
+    // Build ISO date range
+    let since, until;
+    if (req.query.start && req.query.end) {
+      since = new Date(req.query.start + 'T00:00:00Z').toISOString();
+      until = new Date(req.query.end   + 'T23:59:59Z').toISOString();
+    } else {
+      const days = parseInt(req.query.days) || 30;
+      since = new Date(Date.now() - days * 86400000).toISOString();
+      until = new Date().toISOString();
+    }
+
+    const productMap = {};
+    const MAX_PAGES = 5; // 500 events per metric
+
+    for (const metricId of metricIds) {
+      let cursor = null;
+      let pageCount = 0;
+      do {
+        let url = `events?filter=and(equals(metric_id,'${metricId}'),greater-or-equal(datetime,'${since}'),less-or-equal(datetime,'${until}'))` +
+                  `&fields[event]=event_properties&page[size]=100&sort=-datetime`;
+        if (cursor) url += `&page[cursor]=${encodeURIComponent(cursor)}`;
+
+        const data = await klaviyoFetch(b, url);
+        for (const event of (data.data || [])) {
+          const props = event.attributes?.event_properties || {};
+          const name = props.Name || props.ProductName || props.Title || 'Unknown';
+          if (name === 'Unknown') continue;
+          const qty = Number(props.Quantity) || 1;
+          const rev = Number(props['$value']) || 0;
+          const key = name.toLowerCase();
+          if (!productMap[key]) productMap[key] = { title: name, quantity: 0, revenue: 0 };
+          productMap[key].quantity += qty;
+          productMap[key].revenue  += rev;
+        }
+
+        cursor = null;
+        if (data.links?.next) {
+          try { cursor = new URL(data.links.next).searchParams.get('page[cursor]'); } catch {}
+        }
+        pageCount++;
+      } while (cursor && pageCount < MAX_PAGES);
+    }
+
+    const products = Object.values(productMap)
+      .sort((a, bb) => bb.revenue - a.revenue)
+      .map(p => ({ ...p, aov: p.quantity > 0 ? p.revenue / p.quantity : 0 }));
+
+    res.json({ products });
+  } catch (e) {
+    console.error('Email top products error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/shopify/analytics', (req, res) => {
   res.json({ daily: [], available: false });
 });
 
 // ─── Google Analytics 4 ───────────────────────────────────────────────────────
-const crypto = require('crypto');
 
 const GA4_PROPERTIES = {
   ra:  process.env.GA4_PROPERTY_RA,

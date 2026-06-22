@@ -62,8 +62,55 @@
       top: 0;
       z-index: 100;
     }
-    .header-row { display: flex; align-items: center; justify-content: space-between; }
+    .header-top-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
     .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+    .header-range-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .header-compare-row { display: flex; justify-content: flex-end; }
+
+    /* Hamburger — hidden on desktop */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      width: 36px;
+      height: 36px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 7px;
+      flex-shrink: 0;
+    }
+    .hamburger span {
+      display: block;
+      width: 100%;
+      height: 2px;
+      background: var(--light);
+      border-radius: 2px;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .hamburger.active span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .hamburger.active span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .hamburger.active span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
     .logo {
       font-family: var(--font-display);
       font-weight: 700;
@@ -82,7 +129,7 @@
       text-transform: uppercase;
       color: var(--muted);
     }
-    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    /* .header-right removed — replaced by .header-range-row inside .header-controls */
 
     /* ─── Brand switcher ─────────────────────── */
     .brand-switcher { display: flex; gap: 2px; background: var(--panel); border-radius: 6px; padding: 3px; }
@@ -200,6 +247,9 @@
     .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
     .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    .logout-link { font-size: 11px; color: #555; text-decoration: none; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 0; transition: color .15s; white-space: nowrap; }
+    .logout-link:hover { color: var(--red-err, #e74c3c); }
+
     /* ─── Nav ─────────────────────────────────── */
     .nav-tabs {
       background: var(--dark);
@@ -225,7 +275,15 @@
     .nav-tab:hover { color: var(--light); }
     .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-    main { flex: 1; padding: 24px; }
+    main {
+      flex: 1;
+      padding: 24px;
+      max-width: 1280px;
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+      box-sizing: border-box;
+    }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
 
@@ -247,7 +305,7 @@
     /* ─── KPI Grid ───────────────────────────── */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(7, 1fr);
       gap: 12px;
       margin-bottom: 20px;
     }
@@ -346,13 +404,13 @@
 
     .metric-charts-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 14px;
       margin-bottom: 20px;
     }
-    @media (max-width: 960px) { .metric-charts-grid { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 580px) { .metric-charts-grid { grid-template-columns: 1fr; } }
     .chart-mini { position: relative; height: 150px; }
+    .chart-hero { position: relative; height: 220px; }
 
     .two-col {
       display: grid;
@@ -424,6 +482,17 @@
     .rev-bar-wrap { display: flex; align-items: center; gap: 8px; }
     .rev-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .rev-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.6s ease; }
+
+    /* ─── Efficiency grid ────────────────────── */
+    .sort-th { cursor: pointer; user-select: none; white-space: nowrap; }
+    .sort-th:hover { color: var(--light); }
+    .sort-th::after { content: ' ↕'; opacity: 0.3; font-size: 9px; }
+    .sort-th.sort-asc::after  { content: ' ↑'; opacity: 1; }
+    .sort-th.sort-desc::after { content: ' ↓'; opacity: 1; }
+    .eff-type { display: inline-block; font-family: var(--font-display); font-size: 9px; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; }
+    .eff-type-campaign { background: rgba(16,132,116,0.18); color: #108474; }
+    .eff-type-flow     { background: rgba(139,92,246,0.18); color: #a78bfa; }
 
     /* ─── Misc ───────────────────────────────── */
     .error-msg {
@@ -848,13 +917,163 @@
     }
     .upload-btn:hover { background: var(--accent); color: var(--white); }
     .upload-btn.uploading { opacity: 0.6; cursor: not-allowed; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       RESPONSIVE — Best-practice mobile & tablet
+       ═══════════════════════════════════════════════════════════════ */
+
+    /*
+     * Grid / flex shrink fix — without min-width:0, grid items can't
+     * shrink below their content's intrinsic size (the chart canvas).
+     * This is the root cause of charts bleeding outside their panels.
+     */
+    .metric-charts-grid > *,
+    .two-col > *,
+    .kpi-grid > * { min-width: 0; }
+
+    /* Contain chart canvases so they never overflow their panel */
+    .chart-mini,
+    .chart-hero,
+    .chart-container,
+    .chart-flow { overflow: hidden; }
+
+    /* ── Tablet (≤ 768px) ─────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      header { padding: 8px 14px; gap: 6px; }
+      #conn-banner { padding: 8px 14px; }
+      main { padding: 16px; }
+
+      .nav-tabs { padding: 0 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .nav-tabs::-webkit-scrollbar { display: none; }
+      .nav-tab { white-space: nowrap; flex-shrink: 0; padding: 10px 14px; }
+
+      .panel { padding: 14px 16px; }
+      .kpi-value { font-size: 24px; }
+      .modal-chart-wrap { height: 240px; }
+      .modal-stats { gap: 16px; }
+      .modal-stat-val { font-size: 18px; }
+      .kpi-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    /* ── Phone (≤ 480px) ──────────────────────────────────────────── */
+    @media (max-width: 480px) {
+
+      /* ── Header ─────────────────────────────────────────────────── */
+      header { padding: 8px 12px; gap: 0; }
+      #conn-banner { padding: 8px 12px; }
+
+      /* Top bar: single row — logo+brand on left, hamburger on right */
+      .header-top-row { align-items: center; gap: 8px; }
+
+      /* Tighten header-left; hide decorative separators */
+      .header-left { gap: 8px; flex-shrink: 1; min-width: 0; overflow: hidden; }
+      .brand-sep { display: none; }
+      .header-left .brand-label { display: none; }
+      .logo { font-size: 16px; }
+      .brand-sw-tab { padding: 4px 8px; font-size: 11px; letter-spacing: 0.04em; }
+
+      /* Show the hamburger button on phones */
+      .hamburger { display: flex; flex-shrink: 0; margin-left: auto; }
+
+      /* Dropdown: floats below the header bar, full width, vertical stack */
+      .header-controls {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        gap: 10px;
+        background: var(--dark);
+        border-top: 1px solid var(--border);
+        border-bottom: 2px solid var(--accent);
+        padding: 12px 16px;
+        z-index: 200;
+      }
+      .header-controls.open { display: flex; flex-direction: column; }
+
+      /* Range row: stacked vertically in dropdown */
+      .header-range-row {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+      }
+      .range-tabs {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        overflow: visible;
+        background: none;
+        padding: 0;
+      }
+      .range-tab { width: 100%; text-align: left; padding: 8px 12px; font-size: 13px; }
+
+      /* Controls beside range tabs */
+      .include-today-label { display: none; }
+      .status-dot { flex-shrink: 0; }
+      .refresh-btn { flex-shrink: 0; padding: 6px 11px; font-size: 12px; }
+
+      /* Custom date: full-width row with side-by-side inputs */
+      .custom-date-wrap { flex: 0 0 100%; gap: 6px; flex-wrap: wrap; }
+      .date-input { flex: 1; min-width: 110px; font-size: 13px; }
+
+      /* Compare row: left-aligned, compact */
+      .header-compare-row { justify-content: flex-start; }
+      .compare-wrap { gap: 6px; }
+      .compare-label { display: none; }
+      .compare-tab { padding: 4px 9px; font-size: 11px; }
+
+      /* ── Nav tabs ───────────────────────────────────────────────── */
+      .nav-tabs { padding: 0 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+      .nav-tabs::-webkit-scrollbar { display: none; }
+      .nav-tab { white-space: nowrap; flex-shrink: 0; padding: 9px 12px; font-size: 11px; letter-spacing: 0.04em; }
+
+      /* ── Main layout ────────────────────────────────────────────── */
+      main { padding: 10px; }
+      .section-divider { margin: 12px 0; }
+      .tab-toolbar { flex-wrap: wrap; gap: 8px; }
+
+      /* ── KPI grid ───────────────────────────────────────────────── */
+      .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 12px; }
+      .chart-hero { height: 160px; }
+      .kpi-card { padding: 11px 12px; }
+      .kpi-value { font-size: 20px; }
+      .kpi-sub { font-size: 10px; }
+
+      /* ── Panels ─────────────────────────────────────────────────── */
+      .panel { padding: 12px; }
+      .panel-header { margin-bottom: 8px; }
+      .panel-title { font-size: 12px; }
+
+      /* ── Charts: single column on phones ────────────────────────── */
+      .metric-charts-grid { grid-template-columns: 1fr; gap: 8px; margin-bottom: 12px; }
+      .chart-mini { height: 120px; }
+      .chart-container { height: 170px; }
+      .chart-flow { height: 140px; }
+
+      /* ── Modals ─────────────────────────────────────────────────── */
+      .modal-overlay { padding: 6px; }
+      .modal-header { padding: 10px 14px; }
+      .modal-title { font-size: 13px; }
+      .modal-chart-wrap { height: 200px; padding: 10px; }
+      .modal-table-wrap { padding: 0 12px 12px; }
+      .modal-stats { gap: 10px; padding: 10px 14px; }
+      .modal-stat-val { font-size: 16px; }
+      .chat-modal-box { height: 82vh; }
+
+      /* ── Tables ─────────────────────────────────────────────────── */
+      .data-table td { padding: 8px 9px; }
+      .data-table th { padding: 7px 9px; }
+    }
+
   </style>
 </head>
 <body>
 <div class="app">
 
   <header>
-    <div class="header-row">
+    <div class="header-top-row">
       <div class="header-left">
         <div class="logo" id="brand-logo">Real<span>Avid</span></div>
         <div class="brand-sep"></div>
@@ -866,41 +1085,46 @@
           <button class="brand-sw-tab" data-brand="oe">Outdoor Edge</button>
         </div>
       </div>
-      <div class="header-right">
-        <div class="range-tabs">
-          <button class="range-tab" data-days="7">7D</button>
-          <button class="range-tab" data-days="10">10D</button>
-          <button class="range-tab" data-days="14">14D</button>
-          <button class="range-tab active" data-days="30">30D</button>
-          <button class="range-tab" data-days="60">60D</button>
-          <button class="range-tab" data-days="90">90D</button>
-          <button class="range-tab" data-preset="week">This Wk</button>
-          <button class="range-tab" data-preset="month">This Mo</button>
-          <button class="range-tab" data-preset="last-month">Last Mo</button>
-          <button class="range-tab" data-preset="year">YTD</button>
-          <button class="range-tab" id="custom-tab" data-days="0">Custom</button>
+      <button class="hamburger" id="hamburger-btn" onclick="toggleHeaderControls()" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="header-controls" id="header-controls">
+        <div class="header-range-row">
+          <div class="range-tabs">
+            <button class="range-tab" data-days="7">7D</button>
+            <button class="range-tab" data-days="10">10D</button>
+            <button class="range-tab" data-days="14">14D</button>
+            <button class="range-tab active" data-days="30">30D</button>
+            <button class="range-tab" data-days="60">60D</button>
+            <button class="range-tab" data-days="90">90D</button>
+            <button class="range-tab" data-preset="week">This Wk</button>
+            <button class="range-tab" data-preset="month">This Mo</button>
+            <button class="range-tab" data-preset="last-month">Last Mo</button>
+            <button class="range-tab" data-preset="year">YTD</button>
+            <button class="range-tab" id="custom-tab" data-days="0">Custom</button>
+          </div>
+          <label class="include-today-label">
+            <input type="checkbox" id="include-today-cb"> Include today
+          </label>
+          <div class="custom-date-wrap" id="custom-date-wrap">
+            <input type="date" id="date-start" class="date-input" />
+            <span class="date-sep">–</span>
+            <input type="date" id="date-end" class="date-input" />
+            <button class="refresh-btn" onclick="applyCustomRange()">Apply</button>
+          </div>
+          <div class="status-dot" id="status-dot" title="Checking connection..."></div>
+          <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
         </div>
-        <label class="include-today-label">
-          <input type="checkbox" id="include-today-cb"> Include today
-        </label>
-        <div class="custom-date-wrap" id="custom-date-wrap">
-          <input type="date" id="date-start" class="date-input" />
-          <span class="date-sep">–</span>
-          <input type="date" id="date-end" class="date-input" />
-          <button class="refresh-btn" onclick="applyCustomRange()">Apply</button>
-        </div>
-        <div class="status-dot" id="status-dot" title="Checking connection..."></div>
-        <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">↻ Refresh</button>
-      </div>
-    </div>
-    <div class="header-row">
-      <div></div>
-      <div class="compare-wrap">
-        <span class="compare-label">Compare:</span>
-        <div class="compare-tabs">
-          <button class="compare-tab" data-compare="none">Off</button>
-          <button class="compare-tab" data-compare="period">vs. Prev Period</button>
-          <button class="compare-tab active" data-compare="year">vs. Last Year</button>
+        <div class="header-compare-row">
+          <div class="compare-wrap">
+            <span class="compare-label">Compare:</span>
+            <div class="compare-tabs">
+              <button class="compare-tab" data-compare="none">Off</button>
+              <button class="compare-tab" data-compare="period">vs. Prev Period</button>
+              <button class="compare-tab active" data-compare="year">vs. Last Year</button>
+            </div>
+          </div>
+          <a href="/logout" class="logout-link">Sign out</a>
         </div>
       </div>
     </div>
@@ -930,6 +1154,7 @@
       <div class="insights-panel" id="insights-overview"></div>
 
       <div class="kpi-grid">
+        <!-- Commerce -->
         <div class="kpi-card">
           <div class="kpi-label">Net Sales</div>
           <div class="kpi-value loading" id="ov-revenue">—</div>
@@ -947,17 +1172,24 @@
           <div class="kpi-delta" id="ov-aov-delta"></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Avg Campaign Revenue</div>
-          <div class="kpi-value loading" id="ov-lists">—</div>
-          <div class="kpi-delta" id="ov-lists-delta"></div>
-          <div class="kpi-sub">per campaign sent</div>
+          <div class="kpi-label">New Customers</div>
+          <div class="kpi-value loading" id="ov-new-customers">—</div>
+          <div class="kpi-delta" id="ov-new-customers-delta"></div>
+          <div class="kpi-sub">first-time buyers</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Avg Recipients / Campaign</div>
-          <div class="kpi-value loading" id="ov-subs">—</div>
-          <div class="kpi-delta" id="ov-subs-delta"></div>
-          <div class="kpi-sub">per campaign sent</div>
+          <div class="kpi-label">Returning Rate</div>
+          <div class="kpi-value loading" id="ov-returning-rate">—</div>
+          <div class="kpi-delta" id="ov-returning-rate-delta"></div>
+          <div class="kpi-sub">repeat buyers</div>
         </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Checkout Rate</div>
+          <div class="kpi-value loading" id="ov-checkout-rate">—</div>
+          <div class="kpi-delta" id="ov-checkout-rate-delta"></div>
+          <div class="kpi-sub">checkout completion</div>
+        </div>
+        <!-- Traffic / Conversion -->
         <div class="kpi-card">
           <div class="kpi-label">Sessions</div>
           <div class="kpi-value loading" id="ov-sessions">—</div>
@@ -970,14 +1202,51 @@
           <div class="kpi-delta" id="ov-conv-rate-delta"></div>
           <div class="kpi-sub">orders / sessions</div>
         </div>
+        <!-- Email -->
+        <div class="kpi-card">
+          <div class="kpi-label">Email Revenue</div>
+          <div class="kpi-value loading" id="ov-email-rev">—</div>
+          <div class="kpi-delta" id="ov-email-rev-delta"></div>
+          <div class="kpi-sub">campaigns + flows</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Email Rev %</div>
+          <div class="kpi-value loading" id="ov-email-rev-pct">—</div>
+          <div class="kpi-delta" id="ov-email-rev-pct-delta"></div>
+          <div class="kpi-sub">of net sales</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Rev / Recipient</div>
+          <div class="kpi-value loading" id="ov-rev-per-recip">—</div>
+          <div class="kpi-delta" id="ov-rev-per-recip-delta"></div>
+          <div class="kpi-sub">campaign avg</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Email CTR</div>
+          <div class="kpi-value loading" id="ov-email-ctr">—</div>
+          <div class="kpi-delta" id="ov-email-ctr-delta"></div>
+          <div class="kpi-sub">weighted avg</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Flow Revenue</div>
+          <div class="kpi-value loading" id="ov-flow-rev">—</div>
+          <div class="kpi-delta" id="ov-flow-rev-delta"></div>
+          <div class="kpi-sub">active flows</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Campaigns Sent</div>
+          <div class="kpi-value loading" id="ov-campaigns-sent">—</div>
+          <div class="kpi-delta" id="ov-campaigns-sent-delta"></div>
+          <div class="kpi-sub">in period</div>
+        </div>
       </div>
 
       <hr class="section-divider">
       <div class="section-label">Shopify Daily Trends</div>
       <div class="metric-charts-grid">
-        <div class="panel clickable-panel" onclick="openShopifyModal('sales')">
+        <div class="panel clickable-panel" style="grid-column: 1 / -1;" onclick="openShopifyModal('sales')">
           <div class="panel-header"><div class="panel-title">Net Sales</div></div>
-          <div class="chart-mini"><canvas id="ov-sh-chart-sales"></canvas></div>
+          <div class="chart-hero"><canvas id="ov-sh-chart-sales"></canvas></div>
         </div>
         <div class="panel clickable-panel" onclick="openShopifyModal('orders')">
           <div class="panel-header"><div class="panel-title">Orders</div></div>
@@ -999,6 +1268,10 @@
           <div class="panel-header"><div class="panel-title">Checkout Completion %</div></div>
           <div class="chart-mini"><canvas id="ov-sh-chart-checkout-conv"></canvas></div>
         </div>
+        <div class="panel clickable-panel" onclick="openShopifyModal('abandoned')">
+          <div class="panel-header"><div class="panel-title">Abandoned Carts</div></div>
+          <div class="chart-mini"><canvas id="ov-sh-chart-abandoned"></canvas></div>
+        </div>
         <div class="panel clickable-panel" onclick="openShopifyModal('sessions')">
           <div class="panel-header"><div class="panel-title">Sessions</div></div>
           <div class="chart-mini"><canvas id="ov-sh-chart-sessions"></canvas></div>
@@ -1010,30 +1283,24 @@
       </div>
 
       <hr class="section-divider">
-      <div class="section-label">Email Marketing</div>
-      <div class="two-col">
-        <div class="panel clickable-panel" onclick="openCampaignModal()">
-          <div class="panel-header">
-            <div class="panel-title">Campaign Revenue</div>
-            <div class="panel-badge" id="ov-kl-camp-badge">—</div>
-          </div>
-          <div class="chart-container"><canvas id="ov-kl-campaign-chart"></canvas></div>
+      <div class="section-label">Top Products</div>
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-header">
+          <div class="panel-title">By Revenue</div>
+          <div class="panel-stats" id="ov-products-full-stats"></div>
         </div>
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title">Top Products</div>
-            <div class="panel-stats" id="ov-products-stats"></div>
-          </div>
-          <div id="top-products-mini"></div>
-        </div>
+        <div class="table-scroll" id="ov-products-full-table"></div>
       </div>
 
-      <div class="panel clickable-panel" style="margin-bottom:20px;" onclick="openFlowModal()">
+      <hr class="section-divider">
+      <div class="section-label">Email Marketing</div>
+
+      <div class="panel" style="margin-bottom:20px;">
         <div class="panel-header">
-          <div class="panel-title">Flow Revenue</div>
-          <div class="panel-badge" id="ov-kl-flow-badge">—</div>
+          <div class="panel-title">Campaign Efficiency</div>
+          <div class="panel-badge" id="ov-efficiency-badge">—</div>
         </div>
-        <div class="chart-flow"><canvas id="ov-kl-flow-chart"></canvas></div>
+        <div class="table-scroll" id="ov-efficiency-grid"></div>
       </div>
 
       <!-- WIQ-only Meta Ads section -->
@@ -1469,8 +1736,9 @@ let ga4Data     = null;
 const shCharts  = {};
 const ovCharts  = {};
 const adsCharts = {};
-let klCampaignChart = null;
-let klFlowChart     = null;
+let effSortCol  = 'revPerRecip';
+let effSortDir  = 'desc';
+let effGridData = [];
 
 Chart.defaults.color       = '#6b7280';
 Chart.defaults.borderColor = '#2a2e33';
@@ -1547,6 +1815,21 @@ document.querySelectorAll('.range-tab').forEach(btn => {
   });
 });
 
+function toggleHeaderControls() {
+  const controls = document.getElementById('header-controls');
+  const btn      = document.getElementById('hamburger-btn');
+  const isOpen   = controls.classList.toggle('open');
+  btn.classList.toggle('active', isOpen);
+}
+
+// Close hamburger menu when a range preset is chosen on mobile
+document.addEventListener('click', e => {
+  if (e.target.matches('.range-tab') && window.innerWidth <= 480) {
+    document.getElementById('header-controls').classList.remove('open');
+    document.getElementById('hamburger-btn').classList.remove('active');
+  }
+});
+
 function applyCustomRange() {
   const start = document.getElementById('date-start').value;
   const end   = document.getElementById('date-end').value;
@@ -1592,7 +1875,7 @@ function resetDashboard() {
     el.className = 'kpi-delta';
   });
   // Panel badges
-  ['ov-kl-camp-badge','ov-kl-flow-badge','kl-camp-badge','kl-flow-badge','ads-camp-badge'].forEach(id => {
+  ['ov-efficiency-badge','kl-camp-badge','kl-flow-badge','ads-camp-badge'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = '—';
   });
@@ -1610,8 +1893,7 @@ function resetDashboard() {
   Object.keys(shCharts).forEach(id => { shCharts[id].destroy(); delete shCharts[id]; });
   Object.keys(ovCharts).forEach(id => { ovCharts[id].destroy(); delete ovCharts[id]; });
   Object.keys(adsCharts).forEach(id => { adsCharts[id].destroy(); delete adsCharts[id]; });
-  if (klCampaignChart) { klCampaignChart.destroy(); klCampaignChart = null; }
-  if (klFlowChart)     { klFlowChart.destroy();     klFlowChart     = null; }
+  effGridData = [];
 }
 
 // ─── Brand Switcher ────────────────────────────────────────────────────────────
@@ -1701,7 +1983,7 @@ function updateRangeLabels(compDateLabel) {
 // ─── Klaviyo comparison: filter campaigns for the prior period (client-side) ──
 function getComparisonCampaigns() {
   if (compareMode === 'none' || !klaviyoData) return null;
-  const allCamps = klaviyoData.campaigns?.campaigns || [];
+  const allCamps = nonDealer(klaviyoData.campaigns?.campaigns);
   let compStartStr, compEndStr;
 
   if (compareMode === 'period') {
@@ -1738,6 +2020,10 @@ function getComparisonCampaigns() {
     return d >= compStartStr && d <= compEndStr;
   });
 }
+
+// ─── Dealer filter — exclude all dealer-type emails from every calculation ─────
+function isDealer(name) { return /dealer/i.test(name || ''); }
+function nonDealer(arr) { return (arr || []).filter(item => !isDealer(item.name)); }
 
 // ─── Value Formatters ──────────────────────────────────────────────────────────
 function fmt$(n) {
@@ -1986,6 +2272,7 @@ async function loadShopify() {
     if (activeBrand !== brandSnapshot) return;
     console.error('Shopify load error:', e);
     ['ov-revenue','ov-orders','ov-aov','ov-sessions','ov-conv-rate',
+     'ov-new-customers','ov-returning-rate','ov-checkout-rate',
      'sh-netsales','sh-orders','sh-aov','sh-new-customers','sh-returning-rate','sh-checkout-conv','sh-sessions','sh-conv-rate'
     ].forEach(id => setKpi(id, 'Error'));
   }
@@ -2025,19 +2312,20 @@ function renderTopProductsTable(containerId, statsId, products, comparison, mini
   // Panel stats
   const statsEl = document.getElementById(statsId);
   if (statsEl) {
-    const items = [
-      `<span class="panel-stat-item"><span class="panel-stat-label">Total</span><span class="panel-stat-value">${fmt$(totalRev)}</span></span>`,
-      `<span class="panel-stat-item"><span class="panel-stat-label">Avg</span><span class="panel-stat-value">${fmt$(avgRev)}</span></span>`,
-    ];
+    let html =
+      `<div class="ps-item"><span class="ps-val">${fmt$(totalRev)}</span><span class="ps-lbl">total</span></div>` +
+      `<div class="ps-item"><span class="ps-val">${fmt$(avgRev)}</span><span class="ps-lbl">avg</span></div>`;
     if (hasComp && compTotal !== null) {
-      const chg = totalRev - compTotal;
-      const pct = compTotal > 0 ? (chg / compTotal) * 100 : null;
+      const chg  = totalRev - compTotal;
+      const pct  = compTotal > 0 ? (chg / compTotal) * 100 : null;
       const sign = chg >= 0 ? '+' : '';
       const col  = chg >= 0 ? 'var(--green)' : 'var(--red-err)';
-      items.push(`<span class="panel-stat-item"><span class="panel-stat-label">Change</span><span class="panel-stat-value" style="color:${col}">${sign}${fmt$(chg)}</span></span>`);
-      if (pct !== null) items.push(`<span class="panel-stat-item"><span class="panel-stat-label">vs Prior</span><span class="panel-stat-value" style="color:${col}">${sign}${pct.toFixed(1)}%</span></span>`);
+      html += `<div class="ps-sep"></div>` +
+        `<div class="ps-item"><span class="ps-val" style="color:${col}">${sign}${fmt$(chg)}</span><span class="ps-lbl">change</span></div>`;
+      if (pct !== null)
+        html += `<div class="ps-item"><span class="ps-val" style="color:${col}">${sign}${pct.toFixed(1)}%</span><span class="ps-lbl">vs prior</span></div>`;
     }
-    statsEl.innerHTML = items.join('');
+    statsEl.innerHTML = html;
   }
 
   const maxRev = Math.max(...products.map(p => p.revenue), 1);
@@ -2229,16 +2517,27 @@ function renderOverviewShopify() {
   const comp = summary.comparison;
   const compareLabel = getCompareLabel();
 
-  setKpi('ov-revenue', fmt$(summary.totalRevenue));
-  setKpi('ov-orders',  fmtNum(summary.orderCount));
-  setKpi('ov-aov',     fmt$(summary.aov));
+  setKpi('ov-revenue',       fmt$(summary.totalRevenue));
+  setKpi('ov-orders',        fmtNum(summary.orderCount));
+  setKpi('ov-aov',           fmt$(summary.aov));
+  setKpi('ov-new-customers', fmtNum(summary.newCustomerOrders));
+  setKpi('ov-returning-rate', summary.returningRate != null ? summary.returningRate.toFixed(1) + '%' : '—');
+  setKpi('ov-checkout-rate',  summary.checkoutConvRate != null ? summary.checkoutConvRate.toFixed(1) + '%' : '—');
 
   if (comp && compareMode !== 'none') {
-    showDelta('ov-revenue-delta', summary.totalRevenue, comp.totalRevenue);
-    showDelta('ov-orders-delta',  summary.orderCount,   comp.orderCount);
-    showDelta('ov-aov-delta',     summary.aov,          comp.aov);
+    showDelta('ov-revenue-delta',       summary.totalRevenue,      comp.totalRevenue);
+    showDelta('ov-orders-delta',        summary.orderCount,        comp.orderCount);
+    showDelta('ov-aov-delta',           summary.aov,               comp.aov);
+    showDelta('ov-new-customers-delta', summary.newCustomerOrders, comp.newCustomerOrders);
+    if (summary.returningRate != null && comp.returningRate != null)
+      showDelta('ov-returning-rate-delta', summary.returningRate, comp.returningRate);
+    else clearDelta('ov-returning-rate-delta');
+    if (summary.checkoutConvRate != null && comp.checkoutConvRate != null)
+      showDelta('ov-checkout-rate-delta', summary.checkoutConvRate, comp.checkoutConvRate);
+    else clearDelta('ov-checkout-rate-delta');
   } else {
-    ['ov-revenue-delta','ov-orders-delta','ov-aov-delta'].forEach(clearDelta);
+    ['ov-revenue-delta','ov-orders-delta','ov-aov-delta',
+     'ov-new-customers-delta','ov-returning-rate-delta','ov-checkout-rate-delta'].forEach(clearDelta);
   }
 
   const sparse = summary.days > 60;
@@ -2254,6 +2553,7 @@ function renderOverviewShopify() {
   renderOvChart('ov-sh-chart-new-customers',  labels, summary.dailyData.map(d => d.newCustomers),     '#3498db', '',  sparse, ovCd ? ovCd.map(d => d.newCustomers)     : null, compareLabel);
   renderOvChart('ov-sh-chart-returning-rate', labels, summary.dailyData.map(ovRr), '#2ecc71', '%', sparse, ovCd ? ovCd.map(ovRr) : null, compareLabel);
   renderOvChart('ov-sh-chart-checkout-conv',  labels, summary.dailyData.map(d => d.checkoutConvRate), '#9b59b6', '%', sparse, ovCd ? ovCd.map(d => d.checkoutConvRate) : null, compareLabel);
+  renderOvChart('ov-sh-chart-abandoned',      labels, summary.dailyData.map(d => d.abandoned || 0),   '#e74c3c', '',  sparse, ovCd ? ovCd.map(d => d.abandoned || 0)   : null, compareLabel);
 
   // GA4 sessions + conversion rate (overview)
   const ga4CompOv    = (ga4Data?.comparison && compareMode !== 'none') ? ga4Data.comparison : null;
@@ -2288,7 +2588,8 @@ function renderOverviewShopify() {
   renderOvChart('ov-sh-chart-sessions',  labels, ovDailySess, '#e67e22', '',  sparse, ovCompSess, compareLabel);
   renderOvChart('ov-sh-chart-conv-rate', labels, ovDailyCR,   '#1abc9c', '%', sparse, ovCompCR,   compareLabel);
 
-  // Top Products (overview)
+  // Top Products (overview) — full table (website-wide) + mini email-attributed bar
+  renderTopProductsTable('ov-products-full-table', 'ov-products-full-stats', products.products || [], products.comparison, false);
   renderTopProductsTable('top-products-mini', 'ov-products-stats', (products.products || []).slice(0, 5), products.comparison, true);
 }
 
@@ -2367,7 +2668,7 @@ function renderOverviewAds() {
 // ─── Klaviyo campaign filter ───────────────────────────────────────────────────
 function getFilteredCampaigns() {
   if (!klaviyoData) return [];
-  const allCamps = klaviyoData.campaigns?.campaigns || [];
+  const allCamps = nonDealer(klaviyoData.campaigns?.campaigns);
   if (customStart && customEnd) {
     return allCamps.filter(c => {
       if (!c.sendTime) return false;
@@ -2403,7 +2704,7 @@ async function loadKlaviyo() {
   } catch(e) {
     if (activeBrand !== brandSnapshot) return;
     console.error('Klaviyo load error:', e);
-    ['ov-lists','ov-subs','kl-avg-recipients','kl-campaigns','kl-flows','kl-revenue'].forEach(id => setKpi(id, 'Error'));
+    ['ov-email-rev-pct','ov-rev-per-recip','ov-email-ctr','kl-avg-recipients','kl-campaigns','kl-flows','kl-revenue'].forEach(id => setKpi(id, 'Error'));
   }
 }
 
@@ -2411,7 +2712,7 @@ async function loadKlaviyo() {
 function renderKlaviyo() {
   if (!klaviyoData) return;
   const { flows } = klaviyoData;
-  const flowList = flows.flows || [];
+  const flowList = nonDealer(flows.flows);
   const campList = getFilteredCampaigns();
   const compCamps = getComparisonCampaigns();
 
@@ -2522,156 +2823,156 @@ function renderOverviewKlaviyo() {
   if (!klaviyoData) return;
   const campList  = getFilteredCampaigns();
   const compCamps = getComparisonCampaigns();
-  const flowList  = klaviyoData.flows?.flows || [];
+  const flowList  = nonDealer(klaviyoData.flows?.flows);
 
-  const n = campList.length;
-  const totalRevenue    = campList.reduce((s, c) => s + (c.revenue    || 0), 0);
-  const totalRecipients = campList.reduce((s, c) => s + (c.recipients || 0), 0);
-  const avgRevenue    = n > 0 ? totalRevenue    / n : 0;
-  const avgRecipients = n > 0 ? Math.round(totalRecipients / n) : 0;
+  const totalEmailRev   = campList.reduce((s, c) => s + (c.revenue      || 0), 0);
+  const totalRecipients = campList.reduce((s, c) => s + (c.recipients   || 0), 0);
+  const totalClicks     = campList.reduce((s, c) => s + (c.clicksUnique || 0), 0);
+  const totalFlowRev    = flowList.reduce((s, f) => s + (f.revenue      || 0), 0);
+  const totalEmailRevAbs = totalEmailRev + totalFlowRev;
 
-  setKpi('ov-lists', fmt$(avgRevenue));
-  setKpi('ov-subs',  fmtNum(avgRecipients));
+  const shopifyTotal = shopifyData?.summary?.totalRevenue || 0;
+  const emailRevPct  = shopifyTotal > 0 ? (totalEmailRevAbs / shopifyTotal * 100) : 0;
+  const revPerRecip  = totalRecipients > 0 ? totalEmailRev / totalRecipients : 0;
+  const blendedCtr   = totalRecipients > 0 ? (totalClicks / totalRecipients * 100) : 0;
+
+  setKpi('ov-email-rev-pct',  emailRevPct > 0  ? emailRevPct.toFixed(1) + '%' : '—');
+  setKpi('ov-rev-per-recip',  revPerRecip > 0  ? '$' + revPerRecip.toFixed(3) : '—');
+  setKpi('ov-email-ctr',      blendedCtr > 0   ? blendedCtr.toFixed(2) + '%' : '—');
+  setKpi('ov-email-rev',      totalEmailRevAbs > 0 ? fmt$(totalEmailRevAbs) : '—');
+  setKpi('ov-flow-rev',       totalFlowRev > 0     ? fmt$(totalFlowRev)     : '—');
+  setKpi('ov-campaigns-sent', fmtNum(campList.length));
 
   if (compCamps && compareMode !== 'none') {
-    const cn   = compCamps.length;
-    const cRev = compCamps.reduce((s, c) => s + (c.revenue    || 0), 0);
-    const cRec = compCamps.reduce((s, c) => s + (c.recipients || 0), 0);
-    showDelta('ov-lists-delta', avgRevenue,    cn > 0 ? cRev / cn : 0);
-    showDelta('ov-subs-delta',  avgRecipients, cn > 0 ? Math.round(cRec / cn) : 0);
+    const cRev  = compCamps.reduce((s, c) => s + (c.revenue      || 0), 0);
+    const cRec  = compCamps.reduce((s, c) => s + (c.recipients   || 0), 0);
+    const cClk  = compCamps.reduce((s, c) => s + (c.clicksUnique || 0), 0);
+    const compShopifyTotal = shopifyData?.summary?.comparison?.totalRevenue || 0;
+    const cRevTotal    = cRev + totalFlowRev;
+    const cRevPct      = compShopifyTotal > 0 ? (cRevTotal / compShopifyTotal * 100) : 0;
+    const cRevPerRecip = cRec > 0 ? cRev / cRec : 0;
+    const cCtr         = cRec > 0 ? (cClk / cRec * 100) : 0;
+    showDelta('ov-email-rev-pct-delta', emailRevPct,      cRevPct);
+    showDelta('ov-rev-per-recip-delta', revPerRecip,      cRevPerRecip);
+    showDelta('ov-email-ctr-delta',     blendedCtr,       cCtr);
+    showDelta('ov-email-rev-delta',     totalEmailRevAbs, cRev + totalFlowRev);
+    showDelta('ov-flow-rev-delta',      totalFlowRev,     totalFlowRev);
+    showDelta('ov-campaigns-sent-delta', campList.length, compCamps.length);
   } else {
-    clearDelta('ov-lists-delta');
-    clearDelta('ov-subs-delta');
+    ['ov-email-rev-pct-delta','ov-rev-per-recip-delta','ov-email-ctr-delta',
+     'ov-email-rev-delta','ov-flow-rev-delta','ov-campaigns-sent-delta'].forEach(clearDelta);
   }
 
-  // Campaign revenue bar chart
-  renderKlCampaignChart(campList);
-
-  // Flow revenue bar chart
-  renderKlFlowChart(flowList);
+  // Campaign + flow efficiency grid
+  renderCampaignEfficiencyGrid(campList, flowList);
 }
 
-// ─── Campaign Revenue Bar Chart ────────────────────────────────────────────────
-function renderKlCampaignChart(campaigns) {
-  if (klCampaignChart) { klCampaignChart.destroy(); klCampaignChart = null; }
-  const canvas = document.getElementById('ov-kl-campaign-chart');
-  if (!canvas) return;
 
-  const badge = document.getElementById('ov-kl-camp-badge');
-
-  const sorted = [...campaigns]
-    .filter(c => c.sendTime)
-    .sort((a, b) => new Date(a.sendTime) - new Date(b.sendTime))
-    .slice(-20);
-
-  if (sorted.length === 0) {
-    if (badge) badge.textContent = '0 campaigns';
-    canvas.getContext('2d');
-    return;
-  }
-  if (badge) badge.textContent = `${sorted.length} campaigns`;
-
-  const labels = sorted.map(c => fmtDate(c.sendTime));
-  const data   = sorted.map(c => c.revenue || 0);
-
-  const ctx = canvas.getContext('2d');
-  klCampaignChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: 'rgba(16,132,116,0.5)',
-        borderColor: '#108474',
-        borderWidth: 1,
-        borderRadius: 3,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1c1f22',
-          borderColor: '#2a2e33',
-          borderWidth: 1,
-          titleColor: '#f0f1f2',
-          bodyColor: '#9ca3af',
-          padding: 8,
-          callbacks: {
-            title: items => sorted[items[0].dataIndex]?.name || '',
-            label: ctx => ' ' + fmt$(ctx.parsed.y),
-          }
-        }
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 10 }, maxRotation: 40 }
-        },
-        y: {
-          grid: { color: 'rgba(42,46,51,0.8)' },
-          ticks: { font: { size: 10 }, callback: v => fmt$(v) }
-        }
-      }
-    }
-  });
+// ─── Campaign Efficiency Grid (Overview) ───────────────────────────────────────
+function fmtEfficiency(v) {
+  if (!v || v <= 0) return '—';
+  if (v >= 1)    return '$' + v.toFixed(2);
+  if (v >= 0.01) return '$' + v.toFixed(3);
+  return '< $0.01';
 }
 
-// ─── Flow Revenue Bar Chart (horizontal) ───────────────────────────────────────
-function renderKlFlowChart(flows) {
-  if (klFlowChart) { klFlowChart.destroy(); klFlowChart = null; }
-  const canvas = document.getElementById('ov-kl-flow-chart');
-  if (!canvas) return;
+function renderCampaignEfficiencyGrid(campaigns, flows) {
+  const badge = document.getElementById('ov-efficiency-badge');
+  const container = document.getElementById('ov-efficiency-grid');
+  if (!container) return;
 
-  const badge = document.getElementById('ov-kl-flow-badge');
+  const rows = [];
+  campaigns.forEach(c => {
+    const rev = c.revenue || 0;
+    const rec = c.recipients || 0;
+    rows.push({
+      type: 'campaign',
+      name: c.name || '—',
+      recipients: rec,
+      revenue: rev,
+      revPerRecip: rec > 0 ? rev / rec : 0,
+      openRate: c.openRate || 0,
+    });
+  });
+  flows.forEach(f => {
+    const rev = f.revenue || 0;
+    const rec = f.recipients || 0;
+    rows.push({
+      type: 'flow',
+      name: f.name || '—',
+      recipients: rec,
+      revenue: rev,
+      revPerRecip: rec > 0 ? rev / rec : 0,
+      openRate: 0,
+    });
+  });
 
-  const sorted = [...flows]
-    .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
-    .slice(0, 8);
+  effGridData = rows;
+  if (badge) badge.textContent = `${campaigns.length} campaigns · ${flows.length} flows`;
+  renderEfficiencyTable();
+}
 
-  if (sorted.length === 0) {
-    if (badge) badge.textContent = '0 flows';
+function sortEfficiencyGrid(col) {
+  if (effSortCol === col) {
+    effSortDir = effSortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    effSortCol = col;
+    effSortDir = 'desc';
+  }
+  renderEfficiencyTable();
+}
+
+function renderEfficiencyTable() {
+  const container = document.getElementById('ov-efficiency-grid');
+  if (!container) return;
+
+  if (effGridData.length === 0) {
+    container.innerHTML = '<div class="empty-msg">No campaign or flow data available</div>';
     return;
   }
-  if (badge) badge.textContent = `${sorted.length} flows`;
 
-  const ctx = canvas.getContext('2d');
-  klFlowChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: sorted.map(f => f.name || 'Unknown'),
-      datasets: [{
-        data: sorted.map(f => f.revenue || 0),
-        backgroundColor: accentColorAlpha(0.45),
-        borderColor: accentColor(),
-        borderWidth: 1,
-        borderRadius: 3,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1c1f22',
-          borderColor: '#2a2e33',
-          borderWidth: 1,
-          callbacks: { label: ctx => ' ' + fmt$(ctx.parsed.x) }
-        }
-      },
-      scales: {
-        x: {
-          grid: { color: 'rgba(42,46,51,0.8)' },
-          ticks: { font: { size: 10 }, callback: v => fmt$(v) }
-        },
-        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
-      }
-    }
+  const sorted = [...effGridData].sort((a, b) => {
+    let va = a[effSortCol], vb = b[effSortCol];
+    if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+    if (va < vb) return effSortDir === 'asc' ? -1 : 1;
+    if (va > vb) return effSortDir === 'asc' ? 1 : -1;
+    return 0;
   });
+
+  const th = col => `class="sort-th${effSortCol === col ? ' sort-' + effSortDir : ''}" onclick="sortEfficiencyGrid('${col}')"`;
+  const maxRev = Math.max(...sorted.map(r => r.revenue), 1);
+  const maxEff = Math.max(...sorted.map(r => r.revPerRecip), 0.001);
+
+  container.innerHTML = `<table class="data-table">
+    <thead><tr>
+      <th ${th('type')}>Type</th>
+      <th ${th('name')}>Name</th>
+      <th ${th('recipients')} style="text-align:right;">Recipients</th>
+      <th ${th('revenue')} style="text-align:right;">Revenue</th>
+      <th ${th('revPerRecip')} style="text-align:right;">$/Recipient</th>
+      <th ${th('openRate')} style="text-align:right;">Open Rate</th>
+    </tr></thead>
+    <tbody>${sorted.map(r => `
+      <tr>
+        <td><span class="eff-type eff-type-${r.type}">${r.type === 'campaign' ? 'Campaign' : 'Flow'}</span></td>
+        <td style="color:var(--white);font-weight:500;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.name}</td>
+        <td style="text-align:right;color:var(--light);">${r.recipients > 0 ? fmtNum(r.recipients) : '—'}</td>
+        <td style="text-align:right;">
+          <div class="rev-bar-wrap" style="justify-content:flex-end;">
+            <span style="color:${r.revenue>0?'var(--green)':'var(--muted)'};font-family:var(--font-display);font-size:13px;font-weight:700;min-width:56px;text-align:right;">${r.revenue > 0 ? fmt$(r.revenue) : '—'}</span>
+            <div class="rev-bar" style="max-width:60px;"><div class="rev-bar-fill" style="width:${(r.revenue/maxRev*100).toFixed(1)}%;background:var(--green);"></div></div>
+          </div>
+        </td>
+        <td style="text-align:right;">
+          <div class="rev-bar-wrap" style="justify-content:flex-end;">
+            <span style="color:${r.revPerRecip>0?'var(--accent)':'var(--muted)'};font-family:var(--font-display);font-size:13px;font-weight:700;min-width:56px;text-align:right;">${fmtEfficiency(r.revPerRecip)}</span>
+            <div class="rev-bar" style="max-width:60px;"><div class="rev-bar-fill" style="width:${(r.revPerRecip/maxEff*100).toFixed(1)}%;"></div></div>
+          </div>
+        </td>
+        <td style="text-align:right;color:var(--light);">${r.openRate > 0 ? (r.openRate*100).toFixed(1)+'%' : '—'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
 }
 
 // ─── Chart Modal ───────────────────────────────────────────────────────────────
@@ -3073,7 +3374,7 @@ function openCampaignModal() {
 
 function openFlowModal() {
   if (!klaviyoData) return;
-  const sorted = [...(klaviyoData.flows?.flows||[])].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0,8);
+  const sorted = [...nonDealer(klaviyoData.flows?.flows)].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0,8);
 
   const chartConfig = {
     type: 'bar',
@@ -3529,8 +3830,8 @@ function buildInsightsPayload(tab) {
 
   if (tab === 'overview' || tab === 'klaviyo') {
     if (klaviyoData) {
-      const camps = klaviyoData.campaigns?.campaigns || [];
-      const flows = klaviyoData.flows?.flows || [];
+      const camps = nonDealer(klaviyoData.campaigns?.campaigns);
+      const flows = nonDealer(klaviyoData.flows?.flows);
       payload.klaviyo = {
         emailRevenue:   camps.reduce((s, c) => s + (c.revenue   || 0), 0) + flows.reduce((s, f) => s + (f.revenue || 0), 0),
         campaignCount:  camps.length,
