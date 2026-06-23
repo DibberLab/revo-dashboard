@@ -1551,6 +1551,7 @@
         </div>
       </div>
       <div class="insights-panel" id="insights-ads"></div>
+      <div id="ads-staleness-banner" style="display:none;margin-bottom:12px;"></div>
 
       <div class="kpi-grid">
         <div class="kpi-card">
@@ -1563,9 +1564,10 @@
           <div class="kpi-value loading" id="ads-revenue">—</div>
           <div class="kpi-delta" id="ads-revenue-delta"></div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card" id="ads-roas-card">
           <div class="kpi-label">Purchase ROAS</div>
           <div class="kpi-value loading" id="ads-roas">—</div>
+          <div id="ads-roas-30d" style="font-size:11px;color:var(--muted);margin-top:2px;display:none;"></div>
           <div class="kpi-delta" id="ads-roas-delta"></div>
         </div>
         <div class="kpi-card">
@@ -1584,48 +1586,45 @@
           <div class="kpi-delta" id="ads-cpc-delta"></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Impressions</div>
-          <div class="kpi-value loading" id="ads-impressions">—</div>
-          <div class="kpi-delta" id="ads-impressions-delta"></div>
+          <div class="kpi-label">Cost per result</div>
+          <div class="kpi-value loading" id="ads-cpp">—</div>
+          <div id="ads-cpp-trend" style="font-size:11px;color:var(--muted);margin-top:2px;display:none;"></div>
+          <div class="kpi-delta" id="ads-cpp-delta"></div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Cost / Purchase</div>
-          <div class="kpi-value loading" id="ads-cpp">—</div>
-          <div class="kpi-delta" id="ads-cpp-delta"></div>
+          <div class="kpi-label">ROAS Δ</div>
+          <div class="kpi-value loading" id="ads-roas-delta-val">—</div>
+          <div class="kpi-delta" id="ads-roas-trend-label"></div>
         </div>
       </div>
 
-      <div class="metric-charts-grid">
-        <div class="panel clickable-panel" onclick="openAdsModal('spend')">
-          <div class="panel-header"><div class="panel-title">Daily Spend</div></div>
-          <div class="chart-mini"><canvas id="ads-chart-spend"></canvas></div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Daily Spend &amp; ROAS</div>
+          <button class="insights-btn" id="ads-toggle-purchases" onclick="toggleAdsPurchases()">Show purchases</button>
         </div>
-        <div class="panel clickable-panel" onclick="openAdsModal('revenue')">
-          <div class="panel-header"><div class="panel-title">Daily Revenue</div></div>
-          <div class="chart-mini"><canvas id="ads-chart-revenue"></canvas></div>
+        <div style="position:relative;height:260px;padding:0 4px 4px;">
+          <canvas id="ads-dual-chart"></canvas>
         </div>
-        <div class="panel clickable-panel" onclick="openAdsModal('roas')">
-          <div class="panel-header"><div class="panel-title">Purchase ROAS</div></div>
-          <div class="chart-mini"><canvas id="ads-chart-roas"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Campaign Efficiency</div>
+          <div style="font-size:11px;color:var(--muted);">cost/purchase vs. ROAS · bubble = spend</div>
         </div>
-        <div class="panel clickable-panel" onclick="openAdsModal('purchases')">
-          <div class="panel-header"><div class="panel-title">Daily Purchases</div></div>
-          <div class="chart-mini"><canvas id="ads-chart-purchases"></canvas></div>
-        </div>
-        <div class="panel clickable-panel" onclick="openAdsModal('clicks')">
-          <div class="panel-header"><div class="panel-title">Daily Clicks</div></div>
-          <div class="chart-mini"><canvas id="ads-chart-clicks"></canvas></div>
-        </div>
-        <div class="panel clickable-panel" onclick="openAdsModal('impressions')">
-          <div class="panel-header"><div class="panel-title">Daily Impressions</div></div>
-          <div class="chart-mini"><canvas id="ads-chart-impressions"></canvas></div>
+        <div style="position:relative;height:260px;padding:0 4px 4px;">
+          <canvas id="ads-bubble-chart"></canvas>
         </div>
       </div>
 
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">Campaign Performance</div>
-          <div class="panel-badge" id="ads-camp-badge">—</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button class="insights-btn" id="camp-filter-btn" onclick="toggleCampFilter()" style="font-size:11px;padding:3px 8px;">Hide no-conversion</button>
+            <div class="panel-badge" id="ads-camp-badge">—</div>
+          </div>
         </div>
         <div id="ads-campaigns-table"></div>
       </div>
@@ -3419,6 +3418,46 @@ function openFlowModal() {
 }
 
 // ─── Meta Ads ─────────────────────────────────────────────────────────────────
+const CPR_THRESHOLDS    = { good: 250, bad: 350 };
+const TARGET_ROAS       = 1.0;
+const ROAS_BREAKEVEN    = 1.0;
+const SAMPLE_THRESHOLDS = { insufficient: 20, moderate: 50 };
+
+const CAMPAIGN_PALETTE  = ['#3498db','#e67e22','#2ecc71','#9b59b6','#1abc9c','#f1c40f','#e91e63','#00bcd4'];
+
+let ads30dRoas          = null;
+let adsPurchasesVisible = false;
+let campSortCol         = 'roas';
+let campSortDir         = 'asc';
+let campHideNoConv      = false;
+
+function getCampaignConfidence(purchases) {
+  if (purchases < SAMPLE_THRESHOLDS.insufficient) return 'low';
+  if (purchases < SAMPLE_THRESHOLDS.moderate)     return 'moderate';
+  return 'sufficient';
+}
+
+function getCampaignStatus(campaign, dataLastDate) {
+  if (!campaign.lastDate || !dataLastDate) return null;
+  const daysDiff = Math.round((new Date(dataLastDate) - new Date(campaign.lastDate + 'T00:00:00')) / 86400000);
+  if (daysDiff <= 1) return 'active';
+  if (daysDiff <= 6) return 'paused';
+  return 'inactive';
+}
+
+function getCampaignColor(name) {
+  if (!adsData || !adsData.campaigns) return CAMPAIGN_PALETTE[0];
+  const idx = adsData.campaigns.findIndex(c => c.name === name);
+  return CAMPAIGN_PALETTE[Math.max(0, idx) % CAMPAIGN_PALETTE.length];
+}
+
+function toggleCampFilter() {
+  campHideNoConv = !campHideNoConv;
+  const btn = document.getElementById('camp-filter-btn');
+  if (btn) btn.textContent = campHideNoConv ? 'Show all' : 'Hide no-conversion';
+  if (adsData && adsData.campaigns) renderCampaignTable(adsData.campaigns);
+}
+
 async function loadAds() {
   if (activeBrand !== 'wiq') return;
   const brandSnapshot = activeBrand;
@@ -3432,8 +3471,10 @@ async function loadAds() {
     adsData = data;
     if (data.rowCount === 0) {
       if (info) info.textContent = 'No data for this date range';
-      ['ads-spend','ads-revenue','ads-roas','ads-purchases','ads-clicks','ads-cpc','ads-impressions','ads-cpp'].forEach(id => setKpi(id, '—'));
+      ['ads-spend','ads-revenue','ads-roas','ads-purchases','ads-clicks','ads-cpc','ads-cpp','ads-roas-delta-val'].forEach(id => setKpi(id, '—'));
       Object.keys(adsCharts).forEach(id => { adsCharts[id].destroy(); delete adsCharts[id]; });
+      const staleBanner = document.getElementById('ads-staleness-banner');
+      if (staleBanner) staleBanner.style.display = 'none';
       ['ads-campaigns-table','ads-adsets-table','ads-ads-table'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
       document.querySelectorAll('.panel-stats').forEach(el => { el.innerHTML = ''; });
       ['ov-ads-spend','ov-ads-revenue','ov-ads-roas','ov-ads-cpp'].forEach(id => setKpi(id, '—'));
@@ -3441,6 +3482,19 @@ async function loadAds() {
       return;
     }
     renderAds();
+    // Lazy 30-day ROAS anchor — non-blocking
+    (async () => {
+      try {
+        if (ads30dRoas !== null) { updateRoas30dAnchor(); return; }
+        const now   = new Date();
+        const end   = now.toISOString().split('T')[0];
+        const start = new Date(now - 30 * 86400000).toISOString().split('T')[0];
+        const r30   = await fetch(`/api/ads/data?brand=wiq&start=${start}&end=${end}`);
+        const d30   = await r30.json();
+        ads30dRoas  = (d30.totals && d30.totals.purchases > 0) ? d30.totals.roas : 0;
+        updateRoas30dAnchor();
+      } catch (_) {}
+    })();
   } catch(e) {
     if (activeBrand !== brandSnapshot) return;
     console.error('Ads load error:', e);
@@ -3452,35 +3506,85 @@ function renderAds() {
   if (!adsData || !adsData.totals) return;
   renderOverviewAds();
   const { totals, daily, campaigns, adsets = [], ads = [], rowCount } = adsData;
-  const comp        = adsData.comparison;
+  const comp         = adsData.comparison;
   const compareLabel = getCompareLabel();
 
-  setKpi('ads-spend',       fmt$(totals.spend));
-  setKpi('ads-revenue',     fmt$(totals.revenue));
-  setKpi('ads-roas',        totals.roas.toFixed(2) + 'x');
-  setKpi('ads-purchases',   fmtNum(totals.purchases));
-  setKpi('ads-clicks',      fmtNum(totals.clicks));
-  setKpi('ads-cpc',         fmt$(totals.avgCpc));
-  setKpi('ads-impressions', fmtNum(totals.impressions));
-  setKpi('ads-cpp',         fmt$(totals.costPerPurchase));
+  setKpi('ads-spend',     fmt$(totals.spend));
+  setKpi('ads-revenue',   fmt$(totals.revenue));
+  setKpi('ads-roas',      totals.roas.toFixed(2) + 'x');
+  setKpi('ads-purchases', fmtNum(totals.purchases));
+  setKpi('ads-clicks',    fmtNum(totals.clicks));
+  setKpi('ads-cpc',       fmt$(totals.avgCpc));
+  setKpi('ads-cpp',       fmt$(totals.costPerPurchase));
+
+  // Cost per result — threshold coloring
+  const cprEl = document.getElementById('ads-cpp');
+  if (cprEl) {
+    const cpp = totals.costPerPurchase;
+    cprEl.style.color = cpp > 0 && cpp < CPR_THRESHOLDS.good ? 'var(--green)'
+                      : cpp <= CPR_THRESHOLDS.bad            ? '#fbbf24'
+                      :                                        '#e74c3c';
+  }
+
+  // CPP trend — compare early-period avg vs late-period avg on days that had purchases
+  const cppTrendEl = document.getElementById('ads-cpp-trend');
+  if (cppTrendEl) {
+    const purchaseDays = daily.filter(d => d.purchases > 0).map(d => d.spend / d.purchases);
+    if (purchaseDays.length >= 4 && compareMode === 'none') {
+      const mid      = Math.ceil(purchaseDays.length / 2);
+      const earlyAvg = purchaseDays.slice(0, mid).reduce((s, v) => s + v, 0) / mid;
+      const lateAvg  = purchaseDays.slice(mid).reduce((s, v) => s + v, 0) / (purchaseDays.length - mid);
+      const pct      = ((lateAvg - earlyAvg) / earlyAvg) * 100;
+      const rising   = pct > 0;
+      cppTrendEl.textContent = `${rising ? '↑' : '↓'} ${Math.abs(pct).toFixed(1)}% trend`;
+      cppTrendEl.style.color = rising ? '#e74c3c' : 'var(--green)';
+      cppTrendEl.style.display = 'block';
+    } else {
+      cppTrendEl.style.display = 'none';
+    }
+  }
+
+  // ROAS Δ badge — first day vs last day
+  const roasDeltaEl    = document.getElementById('ads-roas-delta-val');
+  const roasTrendLabel = document.getElementById('ads-roas-trend-label');
+  if (roasDeltaEl) {
+    if (totals.purchases < SAMPLE_THRESHOLDS.insufficient) {
+      roasDeltaEl.textContent = 'Insufficient data';
+      roasDeltaEl.style.color = 'var(--muted)';
+      if (roasTrendLabel) { roasTrendLabel.textContent = ''; roasTrendLabel.className = 'kpi-delta'; }
+    } else if (daily.length >= 2 && daily[0].roas > 0) {
+      const firstRoas = daily[0].roas;
+      const lastRoas  = daily[daily.length - 1].roas;
+      const deltaPct  = ((lastRoas - firstRoas) / firstRoas) * 100;
+      const isPos     = deltaPct >= 0;
+      roasDeltaEl.textContent = `${isPos ? '+' : '−'}${Math.abs(deltaPct).toFixed(1)}% ROAS`;
+      roasDeltaEl.style.color = isPos ? 'var(--green)' : '#e74c3c';
+      if (roasTrendLabel) {
+        roasTrendLabel.textContent = `${daily[0].date.slice(5)} → ${daily[daily.length-1].date.slice(5)}`;
+        roasTrendLabel.className = 'kpi-delta';
+      }
+    } else {
+      roasDeltaEl.textContent = '—';
+      roasDeltaEl.style.color = 'var(--muted)';
+    }
+  }
 
   if (comp && comp.totals && compareMode !== 'none') {
     const ct = comp.totals;
-    showDelta('ads-spend-delta',       totals.spend,           ct.spend);
-    showDelta('ads-revenue-delta',     totals.revenue,         ct.revenue);
-    showDelta('ads-roas-delta',        totals.roas,            ct.roas);
-    showDelta('ads-purchases-delta',   totals.purchases,       ct.purchases);
-    showDelta('ads-clicks-delta',      totals.clicks,          ct.clicks);
-    showDelta('ads-cpc-delta',         totals.avgCpc,          ct.avgCpc);
-    showDelta('ads-impressions-delta', totals.impressions,     ct.impressions);
-    showDelta('ads-cpp-delta',         totals.costPerPurchase, ct.costPerPurchase);
+    showDelta('ads-spend-delta',     totals.spend,           ct.spend);
+    showDelta('ads-revenue-delta',   totals.revenue,         ct.revenue);
+    showDelta('ads-roas-delta',      totals.roas,            ct.roas);
+    showDelta('ads-purchases-delta', totals.purchases,       ct.purchases);
+    showDelta('ads-clicks-delta',    totals.clicks,          ct.clicks);
+    showDelta('ads-cpc-delta',       totals.avgCpc,          ct.avgCpc);
+    showDelta('ads-cpp-delta',       totals.costPerPurchase, ct.costPerPurchase);
     if (comp.start && comp.end) {
-      const fmt = d => new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      updateRangeLabels(`vs. ${fmt(comp.start)} – ${fmt(comp.end)}`);
+      const fmtD = d => new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      updateRangeLabels(`vs. ${fmtD(comp.start)} – ${fmtD(comp.end)}`);
     }
   } else {
     ['ads-spend-delta','ads-revenue-delta','ads-roas-delta','ads-purchases-delta',
-     'ads-clicks-delta','ads-cpc-delta','ads-impressions-delta','ads-cpp-delta'].forEach(clearDelta);
+     'ads-clicks-delta','ads-cpc-delta','ads-cpp-delta'].forEach(clearDelta);
     updateRangeLabels();
   }
 
@@ -3494,36 +3598,13 @@ function renderAds() {
   const adBadge = document.getElementById('ads-ad-badge');
   if (adBadge) adBadge.textContent = ads.length;
 
-  const cd = (comp && compareMode !== 'none') ? comp.daily : null;
-  renderAdsChart('ads-chart-spend',       daily, d => d.spend,       '$',   false, cd, compareLabel);
-  renderAdsChart('ads-chart-revenue',     daily, d => d.revenue,     '$',   false, cd, compareLabel);
-  renderAdsChart('ads-chart-roas',        daily, d => d.roas,        'x',   false, cd, compareLabel);
-  renderAdsChart('ads-chart-purchases',   daily, d => d.purchases,   '',    true,  cd, compareLabel);
-  renderAdsChart('ads-chart-clicks',      daily, d => d.clicks,      '',    true,  cd, compareLabel);
-  renderAdsChart('ads-chart-impressions', daily, d => d.impressions, '',    true,  cd, compareLabel);
+  renderAdsStalenessBanner();
 
-  const tableEl = document.getElementById('ads-campaigns-table');
-  if (!tableEl) return;
-  tableEl.innerHTML = `<table class="data-table">
-    <thead><tr>
-      <th>Campaign</th>
-      <th style="text-align:right;">Spend</th>
-      <th style="text-align:right;">Revenue</th>
-      <th style="text-align:right;">ROAS</th>
-      <th style="text-align:right;">Purchases</th>
-      <th style="text-align:right;">Clicks</th>
-      <th style="text-align:right;">CPC</th>
-    </tr></thead>
-    <tbody>${campaigns.map(c => `<tr>
-      <td style="color:var(--white);font-weight:500;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;">${fmt$(c.spend)}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:${c.revenue>0?'var(--green)':'var(--muted)'};">${c.revenue>0?fmt$(c.revenue):'—'}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--accent);font-weight:700;">${c.roas>0?c.roas.toFixed(2)+'x':'—'}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${c.purchases>0?fmtNum(c.purchases):'—'}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${fmtNum(c.clicks)}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${c.cpc>0?fmt$(c.cpc):'—'}</td>
-    </tr>`).join('')}</tbody>
-  </table>`;
+  const cd = (comp && compareMode !== 'none') ? comp.daily : null;
+  renderAdsDualChart(daily, cd, compareLabel);
+  renderAdsBubbleChart(campaigns);
+
+  renderCampaignTable(campaigns);
 
   const adsetEl = document.getElementById('ads-adsets-table');
   if (adsetEl) adsetEl.innerHTML = adsets.length === 0 ? '<div class="empty-msg">No data</div>' : `<table class="data-table">
@@ -3536,15 +3617,24 @@ function renderAds() {
       <th style="text-align:right;">Clicks</th>
       <th style="text-align:right;">CPC</th>
     </tr></thead>
-    <tbody>${adsets.map(a => `<tr>
-      <td style="color:var(--white);font-weight:500;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.name}">${a.name}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;">${fmt$(a.spend)}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:${a.revenue>0?'var(--green)':'var(--muted)'};">${a.revenue>0?fmt$(a.revenue):'—'}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--accent);font-weight:700;">${a.roas>0?a.roas.toFixed(2)+'x':'—'}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${a.purchases>0?fmtNum(a.purchases):'—'}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${fmtNum(a.clicks)}</td>
-      <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${a.cpc>0?fmt$(a.cpc):'—'}</td>
-    </tr>`).join('')}</tbody>
+    <tbody>${adsets.map(a => {
+      const conf  = getCampaignConfidence(a.purchases);
+      const isLow = conf === 'low';
+      const isMod = conf === 'moderate';
+      const roasCell = isLow
+        ? `<span title="Fewer than ${SAMPLE_THRESHOLDS.insufficient} purchases — ROAS is unreliable at this volume" style="color:var(--muted);">—</span>`
+        : `<span style="color:var(--accent);font-weight:700;">${a.roas.toFixed(2)}x</span>${isMod ? ' <span style="background:rgba(251,205,10,0.15);color:#fbbf24;font-size:10px;padding:1px 5px;border-radius:3px;">Moderate</span>' : ''}`;
+      const rowOpacity = isLow ? 'opacity:0.65;' : '';
+      return `<tr style="${rowOpacity}">
+        <td style="color:var(--white);font-weight:500;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.name}">${a.name}${isLow ? ' <span style="background:rgba(107,114,128,0.2);color:var(--muted);font-size:10px;padding:1px 5px;border-radius:3px;">Low sample</span>' : ''}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;">${fmt$(a.spend)}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:${a.revenue>0?'var(--green)':'var(--muted)'};">${a.revenue>0?fmt$(a.revenue):'—'}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;">${roasCell}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${a.purchases>0?fmtNum(a.purchases):'—'}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${fmtNum(a.clicks)}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${a.cpc>0?fmt$(a.cpc):'—'}</td>
+      </tr>`;
+    }).join('')}</tbody>
   </table>`;
 
   const adsEl = document.getElementById('ads-ads-table');
@@ -3649,6 +3739,418 @@ function renderAdsChart(canvasId, daily, getValue, prefix, isInt, compDaily, com
   setChartStats(canvasId, values, statPrefix, compValues);
 }
 
+function renderAdsDualChart(daily, compDaily, compLabel) {
+  const canvas = document.getElementById('ads-dual-chart');
+  if (!canvas) return;
+  if (adsCharts['ads-dual-chart']) { adsCharts['ads-dual-chart'].destroy(); delete adsCharts['ads-dual-chart']; }
+  if (!daily || daily.length === 0) return;
+
+  const step = Math.max(1, Math.floor(daily.length / 8));
+  const labels     = daily.map((d, i) => i % step === 0 ? d.date.slice(5) : '');
+  const fullLabels = daily.map(d => d.date);
+  const spendData  = daily.map(d => d.spend);
+  const roasData   = daily.map(d => d.roas);
+  const purchData  = daily.map(d => d.purchases);
+
+  const datasets = [
+    {
+      type: 'bar',
+      label: 'Spend',
+      data: spendData,
+      backgroundColor: 'rgba(231,19,26,0.3)',
+      borderColor: 'rgba(231,19,26,0.65)',
+      borderWidth: 1,
+      yAxisID: 'ySpend',
+      order: 3,
+    },
+    {
+      type: 'line',
+      label: 'ROAS',
+      data: roasData,
+      borderColor: '#3498db',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: daily.length > 30 ? 0 : 3,
+      pointHoverRadius: 5,
+      tension: 0.3,
+      fill: false,
+      yAxisID: 'yRoas',
+      order: 1,
+    },
+    {
+      type: 'line',
+      label: '_breakeven',
+      data: daily.map(() => ROAS_BREAKEVEN),
+      borderColor: 'rgba(255,255,255,0.18)',
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderDash: [5, 4],
+      pointRadius: 0,
+      fill: false,
+      yAxisID: 'yRoas',
+      order: 4,
+    },
+  ];
+
+  if (adsPurchasesVisible) {
+    datasets.push({
+      type: 'line',
+      label: 'Purchases',
+      data: purchData,
+      borderColor: '#9b59b6',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: daily.length > 30 ? 0 : 4,
+      pointHoverRadius: 6,
+      tension: 0.2,
+      fill: false,
+      yAxisID: 'yRoas',
+      order: 2,
+    });
+  }
+
+  adsCharts['ads-dual-chart'] = new Chart(canvas, {
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            boxWidth: 10,
+            font: { size: 11 },
+            color: '#6b7280',
+            filter: item => !item.text.startsWith('_'),
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1c1f22',
+          borderColor: '#2a2e33',
+          borderWidth: 1,
+          titleColor: '#f0f1f2',
+          bodyColor: '#9ca3af',
+          padding: 10,
+          filter: item => !item.dataset.label.startsWith('_'),
+          callbacks: {
+            title: items => fullLabels[items[0].dataIndex],
+            label: item => {
+              if (item.dataset.label === 'Spend')     return ` Spend: ${fmt$(item.raw)}`;
+              if (item.dataset.label === 'ROAS')      return ` ROAS: ${item.raw.toFixed(2)}x`;
+              if (item.dataset.label === 'Purchases') return ` Purchases: ${fmtNum(Math.round(item.raw))}`;
+              return null;
+            },
+            afterBody: items => {
+              const i = items[0].dataIndex;
+              if (!adsPurchasesVisible && daily[i]) return [` Purchases: ${fmtNum(Math.round(daily[i].purchases))}`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          display: true,
+          grid: { display: false },
+          ticks: { maxTicksLimit: 8, font: { size: 11 }, color: '#6b7280' }
+        },
+        ySpend: {
+          type: 'linear',
+          position: 'left',
+          display: true,
+          grid: { color: 'rgba(42,46,51,0.8)' },
+          ticks: { maxTicksLimit: 5, font: { size: 11 }, color: '#9ca3af', callback: v => fmt$(v) },
+          title: { display: true, text: 'Daily Spend ($)', font: { size: 10 }, color: '#6b7280' },
+        },
+        yRoas: {
+          type: 'linear',
+          position: 'right',
+          display: true,
+          min: 0,
+          grid: { drawOnChartArea: false },
+          ticks: { maxTicksLimit: 5, font: { size: 11 }, color: '#3498db', callback: v => v.toFixed(1) + 'x' },
+          title: { display: true, text: 'ROAS', font: { size: 10 }, color: '#3498db' },
+        }
+      }
+    }
+  });
+}
+
+function toggleAdsPurchases() {
+  adsPurchasesVisible = !adsPurchasesVisible;
+  const btn = document.getElementById('ads-toggle-purchases');
+  if (btn) btn.textContent = adsPurchasesVisible ? 'Hide purchases' : 'Show purchases';
+  if (adsData && adsData.daily) {
+    const comp      = adsData.comparison;
+    const compDaily = (comp && compareMode !== 'none') ? comp.daily : null;
+    renderAdsDualChart(adsData.daily, compDaily, getCompareLabel());
+  }
+}
+
+function updateRoas30dAnchor() {
+  const el = document.getElementById('ads-roas-30d');
+  if (!el) return;
+  if (ads30dRoas && ads30dRoas > 0) {
+    el.textContent = `30d avg: ${ads30dRoas.toFixed(2)}x`;
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function renderAdsStalenessBanner() {
+  const banner = document.getElementById('ads-staleness-banner');
+  if (!banner) return;
+  if (!adsData || !adsData.daily || adsData.daily.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+  const daily    = adsData.daily;
+  const lastDate = daily[daily.length - 1].date;
+  const today    = new Date();
+  const daysSince = Math.round((today - new Date(lastDate + 'T00:00:00')) / 86400000);
+
+  if (daysSince <= 0) { banner.style.display = 'none'; return; }
+
+  const fmtD  = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  let text    = `Data current through ${fmtD(lastDate)} · ${daysSince} day${daysSince !== 1 ? 's' : ''} since last update`;
+
+  if (activePreset === 'month') {
+    const endOfMonth   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const daysLeft     = Math.max(0, Math.round((endOfMonth - today) / 86400000));
+    const pctCovered   = Math.round((daily.length / (daily.length + daysLeft)) * 100);
+    if (daysLeft > 0) text += ` · ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining (${pctCovered}% of month)`;
+  }
+
+  const isStale  = daysSince > 5;
+  const color    = isStale ? '#e74c3c' : '#fbbf24';
+  const bg       = isStale ? 'rgba(231,19,26,0.08)' : 'rgba(251,205,10,0.08)';
+  const border   = isStale ? 'rgba(231,19,26,0.25)' : 'rgba(251,205,10,0.25)';
+  banner.style.cssText = `display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:9px 14px;background:${bg};border:1px solid ${border};border-radius:6px;font-size:12px;color:${color};`;
+  banner.innerHTML = `<span>⚠</span><span>${text}</span>`;
+}
+
+function renderAdsBubbleChart(campaigns) {
+  const canvas = document.getElementById('ads-bubble-chart');
+  if (!canvas) return;
+  if (adsCharts['ads-bubble-chart']) { adsCharts['ads-bubble-chart'].destroy(); delete adsCharts['ads-bubble-chart']; }
+  if (!campaigns || campaigns.length === 0) return;
+
+  const hasPurchases = campaigns.filter(c => c.purchases > 0);
+  const zeroPurchases = campaigns.filter(c => c.purchases === 0 && c.spend > 0);
+
+  if (hasPurchases.length === 0 && zeroPurchases.length === 0) return;
+
+  const maxSpend = Math.max(...campaigns.map(c => c.spend));
+  const bubbleR  = spend => 7 + ((spend / maxSpend) ** 0.5) * 21;
+
+  const cppVals = hasPurchases.map(c => c.spend / c.purchases);
+  const maxCpp  = cppVals.length > 0 ? Math.max(...cppVals) : 500;
+  const warningX = maxCpp > 0 ? maxCpp * 1.12 : 500;
+
+  const datasets = [];
+
+  hasPurchases.forEach(c => {
+    const cpp    = c.spend / c.purchases;
+    const hex    = getCampaignColor(c.name);
+    const [r,g,b] = [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+    const profitable = c.roas >= 1.0;
+    datasets.push({
+      label: c.name,
+      data: [{ x: cpp, y: c.roas, r: bubbleR(c.spend) }],
+      backgroundColor: `rgba(${r},${g},${b},${profitable ? 0.75 : 0.35})`,
+      borderColor: `rgba(${r},${g},${b},1)`,
+      borderWidth: profitable ? 2 : 1,
+      borderDash: profitable ? [] : [4, 3],
+    });
+  });
+
+  zeroPurchases.forEach(c => {
+    const hex    = getCampaignColor(c.name);
+    const [r,g,b] = [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+    datasets.push({
+      label: c.name,
+      data: [{ x: warningX, y: 0, r: bubbleR(c.spend) }],
+      backgroundColor: `rgba(${r},${g},${b},0.2)`,
+      borderColor: `rgba(${r},${g},${b},0.55)`,
+      borderWidth: 1,
+    });
+  });
+
+  const breakEvenPlugin = {
+    id: 'breakEven',
+    afterDraw(chart) {
+      const { ctx, scales: { x, y } } = chart;
+      if (!y || !x) return;
+      const yPx = y.getPixelForValue(1.0);
+      ctx.save();
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x.left, yPx);
+      ctx.lineTo(x.right, yPx);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
+  adsCharts['ads-bubble-chart'] = new Chart(canvas, {
+    type: 'bubble',
+    data: { datasets },
+    plugins: [breakEvenPlugin],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'right',
+          labels: { boxWidth: 10, font: { size: 10 }, color: '#6b7280', padding: 8 },
+        },
+        tooltip: {
+          backgroundColor: '#1c1f22',
+          borderColor: '#2a2e33',
+          borderWidth: 1,
+          titleColor: '#f0f1f2',
+          bodyColor: '#9ca3af',
+          padding: 10,
+          callbacks: {
+            label: item => {
+              const c = campaigns.find(camp => camp.name === item.dataset.label);
+              if (!c) return item.dataset.label;
+              const lines = [` ${c.name}`, ` Spend: ${fmt$(c.spend)}`];
+              if (c.purchases > 0) {
+                lines.push(` Cost/purchase: ${fmt$(c.spend / c.purchases)}`);
+                lines.push(` ROAS: ${c.roas.toFixed(2)}x`);
+                lines.push(` Purchases: ${fmtNum(c.purchases)}`);
+              } else {
+                lines.push(` Purchases: 0 — no attributed revenue`);
+              }
+              return lines;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(42,46,51,0.8)' },
+          ticks: {
+            maxTicksLimit: 7,
+            font: { size: 11 },
+            color: '#6b7280',
+            callback: v => {
+              if (zeroPurchases.length > 0 && v >= warningX * 0.98) return '∞';
+              return '$' + Math.round(v);
+            }
+          },
+          title: { display: true, text: 'Cost per Purchase', font: { size: 11 }, color: '#6b7280' },
+        },
+        y: {
+          min: 0,
+          grid: { color: 'rgba(42,46,51,0.8)' },
+          ticks: {
+            maxTicksLimit: 6,
+            font: { size: 11 },
+            color: '#6b7280',
+            callback: v => v.toFixed(1) + 'x',
+          },
+          title: { display: true, text: 'ROAS', font: { size: 11 }, color: '#6b7280' },
+        }
+      }
+    }
+  });
+}
+
+function sortCampaigns(col) {
+  if (campSortCol === col) {
+    campSortDir = campSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    campSortCol = col;
+    campSortDir = 'asc';
+  }
+  if (adsData && adsData.campaigns) renderCampaignTable(adsData.campaigns);
+}
+
+function renderCampaignTable(campaigns) {
+  const tableEl = document.getElementById('ads-campaigns-table');
+  if (!tableEl) return;
+
+  const dataLastDate = adsData?.daily?.length > 0 ? adsData.daily[adsData.daily.length - 1].date : null;
+  const visible = campHideNoConv ? campaigns.filter(c => c.purchases > 0) : campaigns;
+
+  const sorted = [...visible].sort((a, b) => {
+    if (campSortCol === 'name') {
+      const av = (a.name || '').toLowerCase(), bv = (b.name || '').toLowerCase();
+      return campSortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    }
+    const av = a[campSortCol] ?? 0, bv = b[campSortCol] ?? 0;
+    return campSortDir === 'asc' ? av - bv : bv - av;
+  });
+
+  const thBase = 'cursor:pointer;user-select:none;white-space:nowrap;';
+  const thStyle = col => thBase + (campSortCol === col ? 'color:var(--white);' : '');
+  const arrow   = col => campSortCol === col ? (campSortDir === 'asc' ? ' ↑' : ' ↓') : '';
+
+  const hiddenCount = campaigns.length - visible.length;
+  const hiddenNote  = hiddenCount > 0 ? `<div style="font-size:11px;color:var(--muted);padding:6px 0 2px;">${hiddenCount} campaign${hiddenCount !== 1 ? 's' : ''} with no conversions hidden</div>` : '';
+
+  tableEl.innerHTML = `${hiddenNote}<table class="data-table">
+    <thead><tr>
+      <th onclick="sortCampaigns('name')" style="${thStyle('name')}">Campaign${arrow('name')}</th>
+      <th style="text-align:center;">Status</th>
+      <th onclick="sortCampaigns('spend')" style="text-align:right;${thStyle('spend')}">Spend${arrow('spend')}</th>
+      <th onclick="sortCampaigns('revenue')" style="text-align:right;${thStyle('revenue')}">Revenue${arrow('revenue')}</th>
+      <th onclick="sortCampaigns('roas')" style="text-align:right;${thStyle('roas')}">ROAS${arrow('roas')}</th>
+      <th onclick="sortCampaigns('purchases')" style="text-align:right;${thStyle('purchases')}">Purchases${arrow('purchases')}</th>
+      <th onclick="sortCampaigns('clicks')" style="text-align:right;${thStyle('clicks')}">Clicks${arrow('clicks')}</th>
+      <th onclick="sortCampaigns('cpc')" style="text-align:right;${thStyle('cpc')}">CPC${arrow('cpc')}</th>
+      <th style="text-align:right;">vs. target</th>
+    </tr></thead>
+    <tbody>${sorted.map(c => {
+      const conf  = getCampaignConfidence(c.purchases);
+      const isLow = conf === 'low';
+      const isMod = conf === 'moderate';
+      const roasCell = isLow
+        ? `<span title="Fewer than ${SAMPLE_THRESHOLDS.insufficient} purchases — ROAS is unreliable at this volume and AOV" style="color:var(--muted);">—</span>`
+        : `${c.roas.toFixed(2)}x`;
+      const confBadge = isLow
+        ? `<span style="display:inline-block;background:rgba(107,114,128,0.2);color:var(--muted);font-size:10px;padding:1px 5px;border-radius:3px;margin-left:5px;">Low sample</span>`
+        : isMod
+        ? `<span style="display:inline-block;background:rgba(251,205,10,0.15);color:#fbbf24;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:5px;">Moderate confidence</span>`
+        : '';
+      const vsTarget = isLow
+        ? `<span style="color:var(--muted);font-size:13px;">n/a</span>`
+        : (() => {
+            const pct  = ((c.roas - TARGET_ROAS) / TARGET_ROAS) * 100;
+            const isP  = pct >= 0;
+            const sign = isP ? '+' : '−';
+            return `<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:12px;background:${isP ? 'rgba(46,204,113,0.15)' : 'rgba(231,19,26,0.15)'};color:${isP ? 'var(--green)' : '#e74c3c'};">${sign}${Math.abs(pct).toFixed(1)}%</span>`;
+          })();
+      const status    = getCampaignStatus(c, dataLastDate);
+      const statusCell = (() => {
+        if (c.purchases === 0) return `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;background:rgba(107,114,128,0.15);color:var(--muted);">No conv.</span>`;
+        if (status === 'active')   return `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;background:rgba(46,204,113,0.15);color:var(--green);">Active</span>`;
+        if (status === 'paused')   return `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;background:rgba(251,205,10,0.15);color:#fbbf24;">Paused</span>`;
+        if (status === 'inactive') return `<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;background:rgba(231,19,26,0.12);color:#e74c3c;">Inactive</span>`;
+        return '—';
+      })();
+      const rowStyle = (isLow || c.purchases === 0) ? 'opacity:0.65;' : '';
+      return `<tr style="${rowStyle}">
+        <td style="color:var(--white);font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}${confBadge}</td>
+        <td style="text-align:center;">${statusCell}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;">${fmt$(c.spend)}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:${c.revenue>0?'var(--green)':'var(--muted)'};">${c.revenue>0?fmt$(c.revenue):'—'}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:${isLow?'var(--muted)':'var(--accent)'};font-weight:${isLow?'normal':'700'};">${roasCell}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${c.purchases>0?fmtNum(c.purchases):'—'}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${fmtNum(c.clicks)}</td>
+        <td style="text-align:right;font-family:var(--font-display);font-size:15px;color:var(--light);">${c.cpc>0?fmt$(c.cpc):'—'}</td>
+        <td style="text-align:right;">${vsTarget}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
 async function uploadAdsCsv(input) {
   if (!input.files[0]) return;
   const file = input.files[0];
@@ -3669,8 +4171,6 @@ async function uploadAdsCsv(input) {
     await loadAds();
     delete insightThreads[insightKey('ads')];
     delete insightThreads[insightKey('overview')];
-    runInsights('ads');
-    runInsights('overview');
   } catch(e) {
     if (info) info.textContent = 'Upload failed: ' + e.message;
   } finally {
@@ -3837,17 +4337,20 @@ function buildInsightsPayload(tab) {
         campaignCount:  camps.length,
         activeFlows:    flows.length,
         avgRecipients:  camps.length > 0 ? Math.round(camps.reduce((s, c) => s + (c.recipients || 0), 0) / camps.length) : 0,
-        campaigns: camps.slice(0, 10).map(c => ({ name: c.name, revenue: c.revenue, recipients: c.recipients, openRate: c.openRate, clickRate: c.clickRate })),
+        campaigns: camps.slice(0, 10).map(c => ({ name: c.name, revenue: c.revenue, recipients: c.recipients, openRate: c.openRate, clickRate: c.clickRate, sendTime: c.sendTime })),
         flows:     flows.slice(0, 8).map(f => ({ name: f.name, revenue: f.revenue })),
       };
     }
   }
 
   if ((tab === 'ads' || tab === 'overview') && adsData?.totals) {
+    const daily = adsData.daily || [];
     payload.ads = {
       ...adsData.totals,
       campaigns:   (adsData.campaigns || []).slice(0, 10),
-      dailyRecent: (adsData.daily || []).slice(-30).map(d => ({ date: d.date, spend: d.spend, revenue: d.revenue, roas: d.roas })),
+      dailyRecent: daily.slice(-30).map(d => ({ date: d.date, spend: d.spend, revenue: d.revenue, roas: d.roas })),
+      adsStart:    daily.length > 0 ? daily[0].date : null,
+      adsEnd:      daily.length > 0 ? daily[daily.length - 1].date : null,
     };
   }
 
@@ -4207,10 +4710,6 @@ async function loadAll() {
   if (brandSnapshot === 'wiq') tasks.push(loadAds());
   await Promise.all(tasks);
   if (activeBrand !== brandSnapshot) return;
-  runInsights('overview');
-  runInsights('shopify');
-  runInsights('klaviyo');
-  if (brandSnapshot === 'wiq') runInsights('ads');
 }
 
 // ─── Refresh All ───────────────────────────────────────────────────────────────

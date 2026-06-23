@@ -853,7 +853,7 @@ function parseCSV(text) {
 }
 
 function adsRowKey(row) {
-  return `${row['Day']}||${row['Campaign name']}||${row['Ad set name']}||${row['Ad name']}`;
+  return `${normalizeDate(row['Day'])}||${row['Campaign name']}||${row['Ad set name']}||${row['Ad name']}`;
 }
 
 function loadAdsRows(brand) {
@@ -915,11 +915,12 @@ function aggregateAds(rows) {
     dailyMap[dateKey].impressions += impressions;
 
     const camp = row['Campaign name'] || 'Unknown';
-    if (!campaignMap[camp]) campaignMap[camp] = { name: camp, spend: 0, revenue: 0, purchases: 0, clicks: 0 };
+    if (!campaignMap[camp]) campaignMap[camp] = { name: camp, spend: 0, revenue: 0, purchases: 0, clicks: 0, lastDate: null };
     campaignMap[camp].spend     += spend;
     campaignMap[camp].revenue   += revenue;
     campaignMap[camp].purchases += purchases;
     campaignMap[camp].clicks    += clicks;
+    if (!campaignMap[camp].lastDate || dateKey > campaignMap[camp].lastDate) campaignMap[camp].lastDate = dateKey;
 
     const adset = row['Ad set name'] || 'Unknown';
     if (!adsetMap[adset]) adsetMap[adset] = { name: adset, campaign: camp, spend: 0, revenue: 0, purchases: 0, clicks: 0 };
@@ -1144,8 +1145,13 @@ function buildModalPrompt(brandName, dateRange, modal) {
   return lines.join('\n');
 }
 
-function buildDataContext(shopify, klaviyo, ads) {
+function buildDataContext(shopify, klaviyo, ads, dateRange) {
   const lines = [];
+  const today = new Date().toISOString().split('T')[0];
+
+  // Fix 4 — data freshness header so Claude knows this is retrospective analysis
+  lines.push(`Data window: ${dateRange || 'unknown'} | Report generated: ${today}`);
+  lines.push('');
 
   if (shopify) {
     const s = shopify, c = s.comp;
@@ -1157,14 +1163,20 @@ function buildDataContext(shopify, klaviyo, ads) {
     lines.push(`Returning Rate: ${s.returningRate?.toFixed(1)}%${c ? ` (was ${c.returningRate?.toFixed(1)}%)` : ''}`);
     if (s.checkoutConvRate != null) lines.push(`Checkout Completion Rate: ${s.checkoutConvRate?.toFixed(1)}%`);
     if (s.dailyData?.length > 1) {
-      const valid = s.dailyData.filter(d => d.revenue != null);
-      const mid = Math.floor(valid.length / 2);
-      const h1  = valid.slice(0, mid).reduce((a, b) => a + b.revenue, 0) / (mid || 1);
-      const h2  = valid.slice(mid).reduce((a, b) => a + b.revenue, 0) / ((valid.length - mid) || 1);
-      const trend = h2 > h1 * 1.08 ? 'accelerating' : h2 < h1 * 0.92 ? 'decelerating' : 'steady';
-      const peak = valid.reduce((a, b) => b.revenue > a.revenue ? b : a, valid[0]);
-      const low  = valid.reduce((a, b) => b.revenue < a.revenue ? b : a, valid[0]);
-      lines.push(`Revenue trend: ${trend} (first-half avg ${sfmt(h1)}/day → second-half avg ${sfmt(h2)}/day)`);
+      const valid      = s.dailyData.filter(d => d.revenue != null);
+      const mid        = Math.floor(valid.length / 2);
+      const h1         = valid.slice(0, mid).reduce((a, b) => a + b.revenue, 0) / (mid || 1);
+      const h2         = valid.slice(mid).reduce((a, b) => a + b.revenue, 0) / ((valid.length - mid) || 1);
+      const trend      = h2 > h1 * 1.08 ? 'accelerating' : h2 < h1 * 0.92 ? 'decelerating' : 'steady';
+      const peak       = valid.reduce((a, b) => b.revenue > a.revenue ? b : a, valid[0]);
+      const low        = valid.reduce((a, b) => b.revenue < a.revenue ? b : a, valid[0]);
+      // Fix 3 — anchor trend to explicit date ranges, not just "first half / second half"
+      const winStart   = valid[0].date;
+      const winEnd     = valid[valid.length - 1].date;
+      const h1End      = valid[mid - 1]?.date || winStart;
+      const h2Start    = valid[mid]?.date || winEnd;
+      lines.push(`Revenue trend: ${trend} | Window: ${winStart} to ${winEnd}`);
+      lines.push(`  First half (${winStart}–${h1End}): avg ${sfmt(h1)}/day → Second half (${h2Start}–${winEnd}): avg ${sfmt(h2)}/day`);
       lines.push(`Peak: ${peak.date} ${sfmt(peak.revenue)} | Lowest: ${low.date} ${sfmt(low.revenue)}`);
     }
     if (s.topProducts?.length > 0) {
@@ -1185,6 +1197,8 @@ function buildDataContext(shopify, klaviyo, ads) {
         if (c.openRate)   parts.push((c.openRate  * 100).toFixed(1) + '% open');
         if (c.clickRate)  parts.push((c.clickRate * 100).toFixed(1) + '% click');
         if (c.recipients) parts.push(nfmt(c.recipients) + ' rcpt');
+        // Fix 2 — include send date so Claude knows whether campaigns are recent or historical
+        if (c.sendTime)   parts.push('sent: ' + c.sendTime.split('T')[0]);
         lines.push(parts.join(' | '));
       });
     }
@@ -1197,6 +1211,10 @@ function buildDataContext(shopify, klaviyo, ads) {
   if (ads) {
     const a = ads;
     lines.push('── META ADS ──');
+    // Fix 1 — explicit date range + historical warning so Claude doesn't recommend acting on finished campaigns
+    if (a.adsStart && a.adsEnd) {
+      lines.push(`Data covers ${a.adsStart} to ${a.adsEnd} — this is historical CSV data. Campaigns may no longer be active.`);
+    }
     lines.push(`Spend: ${sfmt(a.spend)} | Revenue: ${sfmt(a.revenue)} | ROAS: ${a.roas?.toFixed(2)}x`);
     lines.push(`Purchases: ${nfmt(a.purchases)} | Cost/purchase: ${sfmt(a.costPerPurchase)} | CPC: ${sfmt(a.avgCpc)}`);
     lines.push(`Clicks: ${nfmt(a.clicks)} | Impressions: ${nfmt(a.impressions)}`);
@@ -1207,10 +1225,12 @@ function buildDataContext(shopify, klaviyo, ads) {
       );
     }
     if (a.dailyRecent?.length > 1) {
-      const mid = Math.floor(a.dailyRecent.length / 2);
-      const h1r = a.dailyRecent.slice(0, mid).reduce((s, d) => s + d.roas, 0) / (mid || 1);
-      const h2r = a.dailyRecent.slice(mid).reduce((s, d) => s + d.roas, 0) / ((a.dailyRecent.length - mid) || 1);
-      lines.push(`ROAS trend: ${h1r.toFixed(2)}x → ${h2r.toFixed(2)}x over the period`);
+      const mid  = Math.floor(a.dailyRecent.length / 2);
+      const h1r  = a.dailyRecent.slice(0, mid).reduce((s, d) => s + d.roas, 0) / (mid || 1);
+      const h2r  = a.dailyRecent.slice(mid).reduce((s, d) => s + d.roas, 0) / ((a.dailyRecent.length - mid) || 1);
+      const dStart = a.dailyRecent[0].date;
+      const dEnd   = a.dailyRecent[a.dailyRecent.length - 1].date;
+      lines.push(`ROAS trend: ${h1r.toFixed(2)}x → ${h2r.toFixed(2)}x (${dStart} to ${dEnd})`);
     }
   }
 
@@ -1219,7 +1239,7 @@ function buildDataContext(shopify, klaviyo, ads) {
 
 function buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads) {
   const isWIQ = brandName === 'Work IQ Tools';
-  const dataCtx = buildDataContext(shopify, klaviyo, ads);
+  const dataCtx = buildDataContext(shopify, klaviyo, ads, dateRange);
   const tail = `Write exactly 2 short paragraphs. Reference specific numbers, surface non-obvious correlations, flag anything that needs immediate attention, and end each paragraph with one concrete action. Be direct. Do not restate obvious facts.`;
 
   let intro;
@@ -1252,11 +1272,12 @@ function buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads) {
     // WIQ Meta Ads tab: ads only — no email
     intro = [
       `You are a sharp performance marketing analyst. Review the Work IQ Tools Meta Ads data for ${dateRange}.`,
+      `IMPORTANT: This is historical CSV data. The campaigns shown may already be paused or finished. Do not recommend pausing, scaling, or restarting specific campaigns — focus on what the data reveals about performance patterns and what to apply going forward.`,
       `Focus your analysis on:`,
-      `1. ROAS trends — which campaigns are delivering profitable returns vs. burning budget`,
-      `2. Cost efficiency — CPC and cost-per-purchase trends and where they're moving`,
-      `3. Spend vs. revenue relationship — are spend increases translating to proportional revenue?`,
-      `4. Any campaigns or ad sets that need immediate attention based on the numbers`,
+      `1. ROAS trends — which campaigns delivered profitable returns vs. burned budget, and what drove the difference`,
+      `2. Cost efficiency — CPC and cost-per-purchase trends across the window`,
+      `3. Spend vs. revenue relationship — did spend increases translate to proportional revenue?`,
+      `4. Patterns or learnings worth applying to future campaigns`,
       ``,
       tail,
     ];
@@ -1296,7 +1317,7 @@ function buildChatSystemPrompt(brandName, tab, dateRange, shopify, klaviyo, ads)
     '',
     'Current dashboard data:',
     '',
-    buildDataContext(shopify, klaviyo, ads),
+    buildDataContext(shopify, klaviyo, ads, dateRange),
   ].join('\n');
 }
 
@@ -1319,7 +1340,7 @@ app.post('/api/insights', express.json({ limit: '1mb' }), async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 500,
+        max_tokens: 750,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
@@ -1362,7 +1383,7 @@ Data source: uploaded Meta Ads CSV export`,
 
 function buildDevFeedbackPrompt(brandName, tab, dateRange, shopify, klaviyo, ads) {
   const layout = TAB_LAYOUTS[tab] || `${tab} tab`;
-  const dataCtx = buildDataContext(shopify, klaviyo, ads);
+  const dataCtx = buildDataContext(shopify, klaviyo, ads, dateRange);
   return [
     `You are a dashboard UX/analytics consultant reviewing a multi-brand e-commerce analytics dashboard for ${brandName}.`,
     `The developer who built this dashboard is asking for your honest critique and suggestions.`,
