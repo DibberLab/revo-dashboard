@@ -528,6 +528,8 @@
       margin-bottom: 20px;
     }
     @media (max-width: 800px) { .email-stats-grid { grid-template-columns: repeat(2,1fr); } }
+    .email-stats-grid.ll-stats-grid { grid-template-columns: repeat(5, 1fr); }
+    @media (max-width: 1000px) { .email-stats-grid.ll-stats-grid { grid-template-columns: repeat(2,1fr); } }
 
     /* ─── Chart modal ───────────────────────────── */
     .modal-overlay {
@@ -1136,6 +1138,7 @@
     <button class="nav-tab active" data-tab="overview">Overview</button>
     <button class="nav-tab" data-tab="shopify">Shopify</button>
     <button class="nav-tab" data-tab="klaviyo">Klaviyo</button>
+    <button class="nav-tab" data-tab="eliterewards" id="nav-eliterewards" style="display:none;">Elite Rewards</button>
     <button class="nav-tab" data-tab="ads" id="nav-ads" style="display:none;">Meta Ads</button>
   </div>
 
@@ -1535,6 +1538,127 @@
 
     </div>
 
+    <!-- ── Elite Rewards Tab (LoyaltyLion — Real Avid only) ── -->
+    <div class="tab-panel" id="tab-eliterewards">
+
+      <div class="tab-toolbar">
+        <div class="section-label" style="margin-bottom:0;">Elite Rewards — <span id="ll-range-label">Last 30 Days</span></div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div class="compare-tabs" id="ll-period-tabs">
+            <button class="compare-tab" data-ll-period="7">7D</button>
+            <button class="compare-tab active" data-ll-period="30">30D</button>
+            <button class="compare-tab" data-ll-period="90">90D</button>
+            <button class="compare-tab" data-ll-period="365">1Y</button>
+          </div>
+          <button class="insights-btn" id="insights-btn-eliterewards" onclick="runInsights('eliterewards')">✦ Insights</button>
+          <button class="insights-btn" onclick="openChatModal('eliterewards')">◎ Questions</button>
+        </div>
+      </div>
+      <div class="insights-panel" id="insights-eliterewards"></div>
+      <div id="ll-updated-badge" style="margin:-6px 0 14px;color:var(--muted);font-size:11px;"></div>
+
+      <div class="email-stats-grid ll-stats-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Enrolled Members</div>
+          <div class="kpi-value loading" id="ll-enrolled">—</div>
+          <div class="kpi-sub" id="ll-enrolled-sub">of total customers</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">New Enrollees</div>
+          <div class="kpi-value loading" id="ll-new-members">—</div>
+          <div class="kpi-sub">in period</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Points Issued</div>
+          <div class="kpi-value loading" id="ll-points-issued">—</div>
+          <div class="kpi-sub">in period</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Points Redeemed</div>
+          <div class="kpi-value loading" id="ll-points-redeemed">—</div>
+          <div class="kpi-sub">in period</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Rewards Claimed</div>
+          <div class="kpi-value loading" id="ll-rewards-claimed">—</div>
+          <div class="kpi-sub">in period</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin:4px 0 10px;">Program Health — lifetime snapshot</div>
+      <div class="email-stats-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Points Liability</div>
+          <div class="kpi-value loading" id="ll-points-liability">—</div>
+          <div class="kpi-sub">outstanding, all enrolled members</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Avg Points / Member</div>
+          <div class="kpi-value loading" id="ll-avg-points">—</div>
+          <div class="kpi-sub">among enrolled members</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Referred Members</div>
+          <div class="kpi-value loading" id="ll-referred">—</div>
+          <div class="kpi-sub">of total customers</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Repeat Redemption Rate</div>
+          <div class="kpi-value loading" id="ll-repeat-rate">—</div>
+          <div class="kpi-sub" id="ll-repeat-rate-sub">of members who've redeemed</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <div class="panel-title">Tier Breakdown</div>
+          <div class="panel-badge" id="ll-tier-badge">—</div>
+        </div>
+        <div class="table-scroll" id="ll-tier-table"></div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <div class="panel-title">Redemption by Tier — <span id="ll-tier-redemption-range">Last 30 Days</span></div>
+          <div class="panel-badge" id="ll-tier-redemption-badge">—</div>
+        </div>
+        <div class="table-scroll" id="ll-tier-redemption-table"></div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <div class="panel-title">Member Insights Segments</div>
+          <div class="panel-badge" id="ll-segment-badge">—</div>
+        </div>
+        <div class="table-scroll" id="ll-segment-table"></div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <div class="panel-title">Top Referrers</div>
+          <div class="panel-badge" id="ll-referrers-badge">—</div>
+        </div>
+        <div class="table-scroll" id="ll-referrers-table"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Top Claimed Rewards — Last 12 Months</div>
+          <div class="panel-badge" id="ll-rewards-badge">—</div>
+        </div>
+        <div class="table-scroll" id="ll-rewards-table"></div>
+      </div>
+
+      <div class="dev-feedback-wrap">
+        <div class="dev-feedback-header">
+          <span class="dev-feedback-label">◈ Dev Notes</span>
+          <button class="dev-feedback-btn" id="df-btn-eliterewards" onclick="runDevFeedback('eliterewards')">Generate</button>
+        </div>
+        <div class="dev-feedback-panel" id="df-panel-eliterewards"></div>
+      </div>
+
+    </div>
+
     <!-- ── Meta Ads Tab ── -->
     <div class="tab-panel" id="tab-ads">
 
@@ -1874,17 +1998,21 @@ function resetDashboard() {
     el.className = 'kpi-delta';
   });
   // Panel badges
-  ['ov-efficiency-badge','kl-camp-badge','kl-flow-badge','ads-camp-badge'].forEach(id => {
+  ['ov-efficiency-badge','kl-camp-badge','kl-flow-badge','ads-camp-badge',
+   'll-tier-badge','ll-tier-redemption-badge','ll-segment-badge','ll-referrers-badge','ll-rewards-badge'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = '—';
   });
   document.querySelectorAll('.panel-stats').forEach(el => { el.innerHTML = ''; });
   document.querySelectorAll('.insights-panel').forEach(el => { el.classList.remove('visible'); el.innerHTML = ''; });
   // Content areas
-  ['top-products-mini','kl-campaigns-table','kl-flow-rows','ads-campaigns-table'].forEach(id => {
+  ['top-products-mini','kl-campaigns-table','kl-flow-rows','ads-campaigns-table',
+   'll-tier-table','ll-tier-redemption-table','ll-segment-table','ll-referrers-table','ll-rewards-table'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '';
   });
+  const llUpdatedBadge = document.getElementById('ll-updated-badge');
+  if (llUpdatedBadge) llUpdatedBadge.textContent = '';
   // Ads info reset
   const adsInfo = document.getElementById('ads-data-info');
   if (adsInfo) adsInfo.textContent = 'No data loaded';
@@ -1912,6 +2040,20 @@ function updateAdsTabVisibility() {
   }
 }
 
+function updateEliteRewardsTabVisibility() {
+  const navLL = document.getElementById('nav-eliterewards');
+  if (!navLL) return;
+  const show = activeBrand === 'ra';
+  navLL.style.display = show ? '' : 'none';
+  // If Elite Rewards tab is active but brand no longer supports it, switch to overview
+  if (!show && navLL.classList.contains('active')) {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.nav-tab[data-tab="overview"]').classList.add('active');
+    document.getElementById('tab-overview').classList.add('active');
+  }
+}
+
 document.querySelectorAll('.brand-sw-tab').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.dataset.brand === activeBrand) return;
@@ -1923,6 +2065,7 @@ document.querySelectorAll('.brand-sw-tab').forEach(btn => {
     document.documentElement.style.setProperty('--accent2', cfg.accent2);
     document.getElementById('brand-logo').innerHTML = cfg.logoHtml;
     updateAdsTabVisibility();
+    updateEliteRewardsTabVisibility();
     resetDashboard();
     refreshAll();
   });
@@ -2816,6 +2959,190 @@ function renderKlaviyo() {
       </table>`;
   }
 }
+
+// ─── Elite Rewards (LoyaltyLion — Real Avid only) ──────────────────────────────
+let loyaltyLionData = null;
+let llPeriodDays = 30;
+let llRetriesLeft = 180; // ~15 min ceiling for the very first (uncached) computation
+const LL_KPI_IDS = [
+  'll-enrolled', 'll-new-members', 'll-points-issued', 'll-points-redeemed', 'll-rewards-claimed',
+  'll-points-liability', 'll-avg-points', 'll-referred', 'll-repeat-rate',
+];
+
+async function loadEliteRewards() {
+  if (activeBrand !== 'ra') return;
+  const brandSnapshot = activeBrand;
+  try {
+    const res = await fetch('/api/loyaltylion/summary');
+    const data = await res.json();
+    if (activeBrand !== brandSnapshot) return;
+    if (data.error) throw new Error(data.error);
+    if (data.loading) {
+      LL_KPI_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '…'; });
+      const badge = document.getElementById('ll-updated-badge');
+      if (badge) {
+        const c = data.progress?.customers || 0;
+        const t = data.progress?.transactions || 0;
+        badge.textContent = `Building first report — ${fmtNum(c)} members, ${fmtNum(t)} transactions loaded so far… (first run only, one-time cost)`;
+      }
+      if (llRetriesLeft > 0) {
+        llRetriesLeft--;
+        setTimeout(() => { if (activeBrand === 'ra') loadEliteRewards(); }, 5000);
+      } else if (badge) {
+        badge.textContent = 'Still building — this account has a lot of history. Refresh the page in a few minutes.';
+      }
+      return;
+    }
+    loyaltyLionData = data;
+    renderEliteRewards();
+  } catch (e) {
+    if (activeBrand !== brandSnapshot) return;
+    console.error('Elite Rewards load error:', e.message);
+    LL_KPI_IDS.forEach(id => setKpi(id, 'Error'));
+  }
+}
+
+function renderEliteRewards() {
+  if (!loyaltyLionData) return;
+  const d = loyaltyLionData;
+  const p = d.periods?.[llPeriodDays] || { newMembers: 0, pointsIssued: 0, pointsRedeemed: 0, rewardsClaimed: 0, tierRedemptions: [] };
+
+  setKpi('ll-enrolled', fmtNum(d.enrolledMembers));
+  const enrolledSub = document.getElementById('ll-enrolled-sub');
+  if (enrolledSub) enrolledSub.textContent = `of ${fmtNum(d.totalMembers)} total customers`;
+  setKpi('ll-new-members',     fmtNum(p.newMembers));
+  setKpi('ll-points-issued',   fmtNum(p.pointsIssued));
+  setKpi('ll-points-redeemed', fmtNum(p.pointsRedeemed));
+  setKpi('ll-rewards-claimed', fmtNum(p.rewardsClaimed));
+
+  setKpi('ll-points-liability', fmtNum(d.totalPointsOutstanding || 0));
+  setKpi('ll-avg-points',       fmtNum(d.avgPointsPerMember || 0));
+  setKpi('ll-referred',         fmtNum(d.referredMembers || 0));
+  setKpi('ll-repeat-rate',      (d.repeatRedemptionRate || 0).toFixed(1) + '%');
+  const repeatSub = document.getElementById('ll-repeat-rate-sub');
+  if (repeatSub) repeatSub.textContent = `${fmtNum(d.repeatRedeemersCount || 0)} of ${fmtNum(d.redeemersCount || 0)} redeemers`;
+
+  const rangeLabels = { 7: 'Last 7 Days', 30: 'Last 30 Days', 90: 'Last 90 Days', 365: 'Last 12 Months' };
+  const rangeLabel = document.getElementById('ll-range-label');
+  if (rangeLabel) rangeLabel.textContent = rangeLabels[llPeriodDays];
+  const tierRedemptionRange = document.getElementById('ll-tier-redemption-range');
+  if (tierRedemptionRange) tierRedemptionRange.textContent = rangeLabels[llPeriodDays];
+
+  const updatedBadge = document.getElementById('ll-updated-badge');
+  if (updatedBadge) {
+    const ago = (ts) => {
+      if (!ts) return null;
+      const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
+      if (mins < 60) return mins === 0 ? 'just now' : `${mins} min ago`;
+      const hrs = Math.round(mins / 60);
+      return `${hrs} hr${hrs === 1 ? '' : 's'} ago`;
+    };
+    const txAgo = ago(d.transactionsSyncedAt);
+    const memAgo = ago(d.customersSyncedAt);
+    updatedBadge.textContent = (txAgo || memAgo)
+      ? `Points/rewards updated ${txAgo || '—'} · Member/tier counts updated ${memAgo || '—'}`
+      : '';
+  }
+
+  const tiers = d.tierBreakdown || [];
+  const tierBadge = document.getElementById('ll-tier-badge');
+  if (tierBadge) tierBadge.textContent = `${tiers.length} tier${tiers.length === 1 ? '' : 's'}`;
+  const tierTable = document.getElementById('ll-tier-table');
+  if (tierTable) {
+    tierTable.innerHTML = tiers.length === 0 ? '<div class="empty-msg">No tier data available</div>' :
+      `<table class="data-table">
+        <thead><tr><th>Tier</th><th>Members</th><th>% of Enrolled</th><th>Avg Points</th></tr></thead>
+        <tbody>${tiers.map(t => `
+          <tr>
+            <td style="color:var(--white);font-weight:500;">${escHtml(t.name)}</td>
+            <td style="color:var(--light);">${fmtNum(t.count)}</td>
+            <td style="color:var(--light);">${d.enrolledMembers > 0 ? (t.count / d.enrolledMembers * 100).toFixed(1) + '%' : '—'}</td>
+            <td style="color:var(--light);">${fmtNum(t.avgPoints)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  const tierRedemptions = p.tierRedemptions || [];
+  const tierRedemptionBadge = document.getElementById('ll-tier-redemption-badge');
+  if (tierRedemptionBadge) tierRedemptionBadge.textContent = `${tierRedemptions.length} tier${tierRedemptions.length === 1 ? '' : 's'}`;
+  const tierRedemptionTable = document.getElementById('ll-tier-redemption-table');
+  if (tierRedemptionTable) {
+    tierRedemptionTable.innerHTML = tierRedemptions.length === 0 ? '<div class="empty-msg">No redemptions in this period</div>' :
+      `<table class="data-table">
+        <thead><tr><th>Tier</th><th>Rewards Claimed</th><th>Points Redeemed</th></tr></thead>
+        <tbody>${tierRedemptions.map(t => `
+          <tr>
+            <td style="color:var(--white);font-weight:500;">${escHtml(t.name)}</td>
+            <td style="color:var(--light);">${fmtNum(t.rewardsClaimed)}</td>
+            <td style="color:var(--light);">${fmtNum(t.pointsRedeemed)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  const segments = d.segmentBreakdown || [];
+  const segmentBadge = document.getElementById('ll-segment-badge');
+  if (segmentBadge) segmentBadge.textContent = `${segments.length} segment${segments.length === 1 ? '' : 's'}`;
+  const segmentTable = document.getElementById('ll-segment-table');
+  if (segmentTable) {
+    segmentTable.innerHTML = segments.length === 0 ? '<div class="empty-msg">No segment data available</div>' :
+      `<table class="data-table">
+        <thead><tr><th>Segment</th><th>Members</th><th>% of Enrolled</th></tr></thead>
+        <tbody>${segments.map(s => `
+          <tr>
+            <td style="color:var(--white);font-weight:500;">${escHtml(s.name)}</td>
+            <td style="color:var(--light);">${fmtNum(s.count)}</td>
+            <td style="color:var(--light);">${d.enrolledMembers > 0 ? (s.count / d.enrolledMembers * 100).toFixed(1) + '%' : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  const referrers = d.topReferrers || [];
+  const referrersBadge = document.getElementById('ll-referrers-badge');
+  if (referrersBadge) referrersBadge.textContent = `${referrers.length} referrer${referrers.length === 1 ? '' : 's'}`;
+  const referrersTable = document.getElementById('ll-referrers-table');
+  if (referrersTable) {
+    referrersTable.innerHTML = referrers.length === 0 ? '<div class="empty-msg">No referrals recorded</div>' :
+      `<table class="data-table">
+        <thead><tr><th>Referrer</th><th>Members Referred</th></tr></thead>
+        <tbody>${referrers.map(r => `
+          <tr>
+            <td style="color:var(--white);font-weight:500;">${escHtml(r.email)}</td>
+            <td style="color:var(--light);">${fmtNum(r.count)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  const rewards = d.topRewards || [];
+  const rewardsBadge = document.getElementById('ll-rewards-badge');
+  if (rewardsBadge) rewardsBadge.textContent = `${rewards.length} reward type${rewards.length === 1 ? '' : 's'}`;
+  const rewardsTable = document.getElementById('ll-rewards-table');
+  if (rewardsTable) {
+    rewardsTable.innerHTML = rewards.length === 0 ? '<div class="empty-msg">No rewards claimed in the last 12 months</div>' :
+      `<table class="data-table">
+        <thead><tr><th>Reward</th><th>Times Claimed</th></tr></thead>
+        <tbody>${rewards.map(r => `
+          <tr>
+            <td style="color:var(--white);font-weight:500;">${escHtml(r.name)}</td>
+            <td style="color:var(--light);">${fmtNum(r.count)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+}
+
+document.querySelectorAll('#ll-period-tabs .compare-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('active')) return;
+    document.querySelectorAll('#ll-period-tabs .compare-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    llPeriodDays = parseInt(btn.dataset.llPeriod, 10);
+    renderEliteRewards();
+  });
+});
 
 // ─── Overview: Klaviyo section ─────────────────────────────────────────────────
 function renderOverviewKlaviyo() {
@@ -4343,6 +4670,22 @@ function buildInsightsPayload(tab) {
     }
   }
 
+  if (tab === 'eliterewards' && loyaltyLionData) {
+    const d = loyaltyLionData;
+    const p = d.periods?.[llPeriodDays] || {};
+    payload.loyaltylion = {
+      enrolledMembers: d.enrolledMembers, totalMembers: d.totalMembers,
+      newMembers: p.newMembers, pointsIssued: p.pointsIssued,
+      pointsRedeemed: p.pointsRedeemed, rewardsClaimed: p.rewardsClaimed,
+      totalPointsOutstanding: d.totalPointsOutstanding, avgPointsPerMember: d.avgPointsPerMember,
+      referredMembers: d.referredMembers, repeatRedemptionRate: d.repeatRedemptionRate,
+      redeemersCount: d.redeemersCount, repeatRedeemersCount: d.repeatRedeemersCount,
+      tierBreakdown: d.tierBreakdown, tierRedemptions: p.tierRedemptions,
+      segmentBreakdown: d.segmentBreakdown, topReferrers: d.topReferrers,
+      topRewards: d.topRewards,
+    };
+  }
+
   if ((tab === 'ads' || tab === 'overview') && adsData?.totals) {
     const daily = adsData.daily || [];
     payload.ads = {
@@ -4699,7 +5042,7 @@ async function sendChat() {
 async function loadAll() {
   const brandSnapshot = activeBrand;
   // Clear existing insight threads so fresh ones generate after load
-  ['overview', 'shopify', 'klaviyo', 'ads'].forEach(tab => {
+  ['overview', 'shopify', 'klaviyo', 'ads', 'eliterewards'].forEach(tab => {
     delete insightThreads[`${brandSnapshot}:${tab}`];
     const panel = document.getElementById(`insights-${tab}`);
     if (panel) { panel.innerHTML = ''; panel.classList.remove('visible'); }
@@ -4708,6 +5051,7 @@ async function loadAll() {
   });
   const tasks = [loadShopify(), loadKlaviyo()];
   if (brandSnapshot === 'wiq') tasks.push(loadAds());
+  if (brandSnapshot === 'ra')  tasks.push(loadEliteRewards());
   await Promise.all(tasks);
   if (activeBrand !== brandSnapshot) return;
 }
@@ -4770,6 +5114,7 @@ async function runDevFeedback(tab) {
 
 updateRangeLabels();
 updateAdsTabVisibility();
+updateEliteRewardsTabVisibility();
 refreshAll();
 </script>
 </body>

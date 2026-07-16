@@ -11,12 +11,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
-const AUTH_USER   = process.env.DASHBOARD_USER   || 'admin';
-const AUTH_PASS   = process.env.DASHBOARD_PASS   || '';
-const AUTH_SECRET = process.env.SESSION_SECRET   || 'change-me';
+const AUTH_SECRET = process.env.SESSION_SECRET || 'change-me';
 
-function makeToken() {
-  return crypto.createHmac('sha256', AUTH_SECRET).update(AUTH_USER + ':' + AUTH_PASS).digest('hex');
+function makeToken(email) {
+  return crypto.createHmac('sha256', AUTH_SECRET).update(email.toLowerCase()).digest('hex');
 }
 
 function getCookies(req) {
@@ -28,7 +26,10 @@ function getCookies(req) {
 }
 
 function isAuthed(req) {
-  return getCookies(req)['auth_token'] === makeToken();
+  const cookies = getCookies(req);
+  const email = cookies['auth_email'] || '';
+  if (!email.toLowerCase().endsWith('@revobrands.com')) return false;
+  return cookies['auth_token'] === makeToken(email);
 }
 
 const LOGIN_PAGE = `<!DOCTYPE html>
@@ -45,7 +46,7 @@ const LOGIN_PAGE = `<!DOCTYPE html>
     .logo span { color: #28a06e; }
     .subtitle { color: #555; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 32px; }
     label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #666; margin-bottom: 6px; }
-    input[type=text], input[type=password] { display: block; width: 100%; background: #0d0d0d; border: 1px solid #252525; border-radius: 7px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; margin-bottom: 16px; outline: none; transition: border-color .15s; }
+    input[type=email] { display: block; width: 100%; background: #0d0d0d; border: 1px solid #252525; border-radius: 7px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; margin-bottom: 16px; outline: none; transition: border-color .15s; }
     input:focus { border-color: #28a06e; }
     button { width: 100%; background: #28a06e; border: none; border-radius: 7px; padding: 11px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.05em; transition: background .15s; margin-top: 4px; }
     button:hover { background: #1f8a5e; }
@@ -57,12 +58,10 @@ const LOGIN_PAGE = `<!DOCTYPE html>
   <div class="card">
     <div class="logo">Revo<span>Brands</span></div>
     <div class="subtitle">Analytics Dashboard</div>
-    <div class="err" id="err">Incorrect username or password.</div>
+    <div class="err" id="err">A Revo Brands email address is required.</div>
     <form method="POST" action="/login">
-      <label for="u">Username</label>
-      <input type="text" id="u" name="username" autocomplete="username" required autofocus>
-      <label for="p">Password</label>
-      <input type="password" id="p" name="password" autocomplete="current-password" required>
+      <label for="e">Email</label>
+      <input type="email" id="e" name="email" autocomplete="email" placeholder="you@revobrands.com" required autofocus>
       <button type="submit">Sign In</button>
     </form>
   </div>
@@ -77,10 +76,13 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  const { username, password } = req.body || {};
-  if (username === AUTH_USER && password === AUTH_PASS) {
-    const token = makeToken();
-    res.setHeader('Set-Cookie', `auth_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`);
+  const email = (req.body?.email || '').trim().toLowerCase();
+  if (email.endsWith('@revobrands.com')) {
+    const token = makeToken(email);
+    res.setHeader('Set-Cookie', [
+      `auth_email=${encodeURIComponent(email)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`,
+      `auth_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`,
+    ]);
     res.redirect('/');
   } else {
     res.redirect('/login?error=1');
@@ -1030,6 +1032,326 @@ app.post('/api/ads/upload', express.text({ limit: '20mb', type: '*/*' }), (req, 
   }
 });
 
+// ─── LoyaltyLion (Elite Rewards — Real Avid only) ─────────────────────────────
+// LoyaltyLion's public API has no aggregate reporting endpoint — only paginated
+// List Customers / List Transactions, and this program has 300k+ customer records
+// (LoyaltyLion mirrors the full Shopify customer base, not just enrolled members).
+// A full crawl takes many minutes, so it can only ever happen once: results are
+// persisted to disk with a per-resource high-water mark, and every refresh after
+// the first is an incremental `updated_at_min` / `created_at_min` sync — merged
+// into the on-disk store — rather than a re-crawl of the whole account.
+const LL_BASE = 'https://api.loyaltylion.com/v2';
+const LL_PERIODS = [7, 30, 90, 365];
+const LL_TRANSACTION_LOOKBACK_DAYS = 400; // covers the 365-day bucket with margin
+const LL_SYNC_OVERLAP_MS = 5 * 60 * 1000; // re-check a 5 min window each sync to absorb API eventual-consistency lag
+const LL_STORE_FILE = path.join(__dirname, 'data', 'loyaltylion-store.json');
+
+async function loyaltyLionFetch(reqPath, params = {}, retries = 3) {
+  const url = new URL(`${LL_BASE}/${reqPath}`);
+  Object.entries(params).forEach(([k, v]) => { if (v != null) url.searchParams.set(k, v); });
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${process.env.LL_KEY}`, Accept: 'application/json' },
+    });
+    if (response.status === 429 && attempt < retries) {
+      const retryAfter = response.headers.get('Retry-After');
+      const delay = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, attempt) * 1000;
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`LoyaltyLion request failed (${response.status}): ${text}`);
+    }
+    return response.json();
+  }
+}
+
+const llProgress = { customers: 0, transactions: 0 };
+
+async function loyaltyLionAllPages(reqPath, key, params = {}) {
+  const items = [];
+  let cursor = null;
+  let page = 0;
+  const t0 = Date.now();
+  llProgress[key] = 0;
+  do {
+    const body = await loyaltyLionFetch(reqPath, { ...params, limit: 500, cursor });
+    items.push(...(body[key] || []));
+    cursor = body.cursor?.next || null;
+    page++;
+    if (page % 10 === 0) {
+      console.log(`LoyaltyLion ${key}: page ${page}, ${items.length} so far (${((Date.now() - t0) / 1000).toFixed(0)}s elapsed)`);
+    }
+    llProgress[key] = items.length;
+  } while (cursor);
+  console.log(`LoyaltyLion ${key}: done — ${items.length} fetched in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
+  return items;
+}
+
+function loadLLStore() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(LL_STORE_FILE, 'utf8'));
+    return {
+      customers: raw.customers || {},
+      transactions: raw.transactions || [],
+      lastCustomerSync: raw.lastCustomerSync || null,
+      lastTransactionSync: raw.lastTransactionSync || null,
+    };
+  } catch {
+    return { customers: {}, transactions: [], lastCustomerSync: null, lastTransactionSync: null };
+  }
+}
+
+function saveLLStore(store) {
+  fs.writeFileSync(LL_STORE_FILE, JSON.stringify(store));
+}
+
+const llStore = loadLLStore();
+
+// Upserts changed/new customers (minimized to just the fields KPIs need) into the store.
+async function syncLoyaltyLionCustomers(store) {
+  const params = store.lastCustomerSync
+    ? { updated_at_min: new Date(new Date(store.lastCustomerSync).getTime() - LL_SYNC_OVERLAP_MS).toISOString() }
+    : {};
+  const syncStart = new Date().toISOString();
+  const fetched = await loyaltyLionAllPages('customers', 'customers', params);
+  fetched.forEach(c => {
+    store.customers[c.id] = {
+      enrolled: !!c.enrolled,
+      enrolled_at: c.enrolled_at || null,
+      tier: c.loyalty_tier_membership?.loyalty_tier?.name || null,
+      points: c.points_approved || 0,
+      referredBy: c.referred_by?.id || null,
+      email: c.email || null,
+      segment: c.insights_segment || null,
+      rewardsClaimed: c.rewards_claimed || 0,
+    };
+  });
+  store.lastCustomerSync = syncStart;
+  return fetched.length;
+}
+
+// Transactions are immutable, so a sync only ever appends; old entries outside
+// the lookback window are trimmed so the store doesn't grow without bound.
+async function syncLoyaltyLionTransactions(store) {
+  const params = {
+    created_at_min: store.lastTransactionSync
+      ? new Date(new Date(store.lastTransactionSync).getTime() - LL_SYNC_OVERLAP_MS).toISOString()
+      : new Date(Date.now() - LL_TRANSACTION_LOOKBACK_DAYS * 86400000).toISOString(),
+  };
+  const syncStart = new Date().toISOString();
+  const fetched = await loyaltyLionAllPages('transactions', 'transactions', params);
+  const seenIds = new Set(store.transactions.map(t => t.id));
+  let added = 0;
+  fetched.forEach(t => {
+    if (seenIds.has(t.id)) return;
+    seenIds.add(t.id);
+    added++;
+    store.transactions.push({
+      id: t.id,
+      created_at: t.created_at,
+      resource: t.resource,
+      points_approved: t.points_approved || 0,
+      rewardTitle: t.resource === 'claimed_reward' ? (t.claimed_reward?.reward?.title || 'Reward') : null,
+      customerId: t.customer?.id ?? null,
+    });
+  });
+  const cutoff = Date.now() - LL_TRANSACTION_LOOKBACK_DAYS * 86400000;
+  store.transactions = store.transactions.filter(t => new Date(t.created_at).getTime() >= cutoff);
+  store.lastTransactionSync = syncStart;
+  return added;
+}
+
+function computeLoyaltyLionSummaryFromStore(store) {
+  const now = Date.now();
+  const customersById = store.customers;
+  const customers = Object.values(customersById);
+  const transactions = store.transactions;
+  const enrolled = customers.filter(c => c.enrolled);
+  const enrolledMembers = enrolled.length;
+
+  // Tier breakdown (+ avg outstanding points per tier)
+  const tierAgg = {};
+  enrolled.forEach(c => {
+    const name = c.tier || 'No Tier';
+    if (!tierAgg[name]) tierAgg[name] = { count: 0, points: 0 };
+    tierAgg[name].count++;
+    tierAgg[name].points += c.points || 0;
+  });
+  const tierBreakdown = Object.entries(tierAgg)
+    .map(([name, v]) => ({ name, count: v.count, avgPoints: v.count > 0 ? Math.round(v.points / v.count) : 0 }))
+    .sort((a, b) => b.count - a.count);
+
+  // Points liability (outstanding, redeemable balance across enrolled members)
+  const totalPointsOutstanding = enrolled.reduce((s, c) => s + (c.points || 0), 0);
+  const avgPointsPerMember = enrolledMembers > 0 ? Math.round(totalPointsOutstanding / enrolledMembers) : 0;
+
+  // Referral program — counted across all synced customers, not just enrolled,
+  // since referral participation doesn't require loyalty enrollment.
+  const referredMembers = customers.filter(c => c.referredBy).length;
+  const referrerCounts = {};
+  customers.forEach(c => {
+    if (!c.referredBy) return;
+    referrerCounts[c.referredBy] = (referrerCounts[c.referredBy] || 0) + 1;
+  });
+  const topReferrers = Object.entries(referrerCounts)
+    .map(([id, count]) => ({ email: customersById[id]?.email || `Customer #${id}`, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  // LoyaltyLion's own insights segments (At Risk / Win Back / Loyal / etc.)
+  const segmentCounts = {};
+  enrolled.forEach(c => {
+    const seg = c.segment || 'Unclassified';
+    segmentCounts[seg] = (segmentCounts[seg] || 0) + 1;
+  });
+  const segmentBreakdown = Object.entries(segmentCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Repeat redemption rate — lifetime, via the customer's own rewards_claimed counter
+  // (more accurate than the transaction window, which only covers the trailing 400 days)
+  const redeemers = enrolled.filter(c => (c.rewardsClaimed || 0) > 0);
+  const repeatRedeemers = enrolled.filter(c => (c.rewardsClaimed || 0) >= 2);
+  const repeatRedemptionRate = redeemers.length > 0 ? (repeatRedeemers.length / redeemers.length) * 100 : 0;
+
+  const rewardCounts = {};
+  const periods = {};
+  const longestPeriod = LL_PERIODS[LL_PERIODS.length - 1];
+  LL_PERIODS.forEach(days => {
+    const cutoff = now - days * 86400000;
+    const newMembers = customers.filter(c => c.enrolled_at && new Date(c.enrolled_at).getTime() >= cutoff).length;
+    let pointsIssued = 0, pointsRedeemed = 0, rewardsClaimed = 0;
+    const tierRedemptionAgg = {};
+    transactions.forEach(t => {
+      if (new Date(t.created_at).getTime() < cutoff) return;
+      if (t.resource === 'claimed_reward') {
+        const amt = Math.abs(t.points_approved || 0);
+        pointsRedeemed += amt;
+        rewardsClaimed += 1;
+        const tierName = (t.customerId != null && customersById[t.customerId]?.tier) || 'No Tier';
+        if (!tierRedemptionAgg[tierName]) tierRedemptionAgg[tierName] = { rewardsClaimed: 0, pointsRedeemed: 0 };
+        tierRedemptionAgg[tierName].rewardsClaimed += 1;
+        tierRedemptionAgg[tierName].pointsRedeemed += amt;
+        if (days === longestPeriod) {
+          rewardCounts[t.rewardTitle || 'Reward'] = (rewardCounts[t.rewardTitle || 'Reward'] || 0) + 1;
+        }
+      } else if ((t.points_approved || 0) > 0) {
+        pointsIssued += t.points_approved;
+      }
+    });
+    const tierRedemptions = Object.entries(tierRedemptionAgg)
+      .map(([name, v]) => ({ name, rewardsClaimed: v.rewardsClaimed, pointsRedeemed: v.pointsRedeemed }))
+      .sort((a, b) => b.rewardsClaimed - a.rewardsClaimed);
+    periods[days] = { newMembers, pointsIssued, pointsRedeemed, rewardsClaimed, tierRedemptions };
+  });
+
+  const topRewards = Object.entries(rewardCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  return {
+    totalMembers: customers.length,
+    enrolledMembers,
+    tierBreakdown,
+    totalPointsOutstanding,
+    avgPointsPerMember,
+    referredMembers,
+    topReferrers,
+    segmentBreakdown,
+    repeatRedemptionRate,
+    redeemersCount: redeemers.length,
+    repeatRedeemersCount: repeatRedeemers.length,
+    periods,
+    topRewards,
+  };
+}
+
+// Customers and transactions are synced on independent schedules. Transactions
+// are a true incremental append (proven: a 20-min cycle re-fetched only a
+// handful of records) so they can refresh often. Customers can't be made cheap
+// the same way — LoyaltyLion (or the underlying Shopify sync) touches
+// `updated_at` on a large fraction of the ~470k customer roster within any
+// short window, so an `updated_at_min` sync there still re-pages a huge chunk
+// of the account. Member/tier counts don't need to be fresher than a few times
+// a day for a dashboard, so that expensive sync just runs far less often.
+const LL_TRANSACTION_SYNC_INTERVAL_MS = 15 * 60 * 1000; // 15 min
+const LL_CUSTOMER_SYNC_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+let llCache = { data: null, computedAt: 0, error: null };
+let llCustomersSyncing = false;
+let llTransactionsSyncing = false;
+let llCustomersSyncedAt = null;
+let llTransactionsSyncedAt = null;
+
+function recomputeLLCache() {
+  try {
+    llCache = { data: computeLoyaltyLionSummaryFromStore(llStore), computedAt: Date.now(), error: null };
+  } catch (e) {
+    console.error('LoyaltyLion compute error:', e.message);
+    llCache.error = e.message;
+  }
+}
+
+async function refreshLoyaltyLionCustomers() {
+  if (llCustomersSyncing || !process.env.LL_KEY) return;
+  llCustomersSyncing = true;
+  try {
+    const isFirstSync = !llStore.lastCustomerSync;
+    const added = await syncLoyaltyLionCustomers(llStore);
+    saveLLStore(llStore);
+    llCustomersSyncedAt = Date.now();
+    recomputeLLCache();
+    console.log(`LoyaltyLion customers ${isFirstSync ? 'initial backfill' : 'sync'} complete: +${added} (${Object.keys(llStore.customers).length} total)`);
+  } catch (e) {
+    console.error('LoyaltyLion customer sync error:', e.message);
+    llCache.error = e.message;
+  } finally {
+    llCustomersSyncing = false;
+  }
+}
+
+async function refreshLoyaltyLionTransactions() {
+  if (llTransactionsSyncing || !process.env.LL_KEY) return;
+  llTransactionsSyncing = true;
+  try {
+    const isFirstSync = !llStore.lastTransactionSync;
+    const added = await syncLoyaltyLionTransactions(llStore);
+    saveLLStore(llStore);
+    llTransactionsSyncedAt = Date.now();
+    recomputeLLCache();
+    console.log(`LoyaltyLion transactions ${isFirstSync ? 'initial backfill' : 'sync'} complete: +${added} (${llStore.transactions.length} in window)`);
+  } catch (e) {
+    console.error('LoyaltyLion transaction sync error:', e.message);
+    llCache.error = e.message;
+  } finally {
+    llTransactionsSyncing = false;
+  }
+}
+
+if (process.env.LL_KEY) {
+  refreshLoyaltyLionCustomers();
+  refreshLoyaltyLionTransactions();
+  setInterval(refreshLoyaltyLionCustomers, LL_CUSTOMER_SYNC_INTERVAL_MS);
+  setInterval(refreshLoyaltyLionTransactions, LL_TRANSACTION_SYNC_INTERVAL_MS);
+}
+
+app.get('/api/loyaltylion/summary', (req, res) => {
+  if (!process.env.LL_KEY) return res.status(404).json({ error: 'LoyaltyLion is not configured' });
+  if (!llCache.data) {
+    if (llCache.error) return res.status(502).json({ error: llCache.error });
+    return res.json({ loading: true, progress: llProgress });
+  }
+  res.json({
+    ...llCache.data,
+    computedAt: llCache.computedAt,
+    customersSyncedAt: llCustomersSyncedAt,
+    transactionsSyncedAt: llTransactionsSyncedAt,
+  });
+});
+
 // ─── Claude Insights ──────────────────────────────────────────────────────────
 function sfmt(n) {
   if (!n) return '$0';
@@ -1145,7 +1467,7 @@ function buildModalPrompt(brandName, dateRange, modal) {
   return lines.join('\n');
 }
 
-function buildDataContext(shopify, klaviyo, ads, dateRange) {
+function buildDataContext(shopify, klaviyo, ads, loyaltylion, dateRange) {
   const lines = [];
   const today = new Date().toISOString().split('T')[0];
 
@@ -1232,14 +1554,39 @@ function buildDataContext(shopify, klaviyo, ads, dateRange) {
       const dEnd   = a.dailyRecent[a.dailyRecent.length - 1].date;
       lines.push(`ROAS trend: ${h1r.toFixed(2)}x → ${h2r.toFixed(2)}x (${dStart} to ${dEnd})`);
     }
+    lines.push('');
+  }
+
+  if (loyaltylion) {
+    const l = loyaltylion;
+    lines.push('── ELITE REWARDS (LOYALTYLION) ──');
+    lines.push(`Enrolled members: ${nfmt(l.enrolledMembers)} of ${nfmt(l.totalMembers)} total customers`);
+    lines.push(`New enrollees: ${nfmt(l.newMembers)} | Points issued: ${nfmt(l.pointsIssued)} | Points redeemed: ${nfmt(l.pointsRedeemed)} | Rewards claimed: ${nfmt(l.rewardsClaimed)}`);
+    lines.push(`Points liability (outstanding): ${nfmt(l.totalPointsOutstanding)} | Avg per member: ${nfmt(l.avgPointsPerMember)}`);
+    lines.push(`Referred members: ${nfmt(l.referredMembers)} | Repeat redemption rate: ${l.repeatRedemptionRate?.toFixed(1)}% (${nfmt(l.repeatRedeemersCount)} of ${nfmt(l.redeemersCount)} redeemers)`);
+    if (l.tierBreakdown?.length > 0) {
+      lines.push('Tier breakdown: ' + l.tierBreakdown.map(t => `${t.name}: ${nfmt(t.count)} (avg ${nfmt(t.avgPoints)} pts)`).join(' | '));
+    }
+    if (l.tierRedemptions?.length > 0) {
+      lines.push('Redemption by tier: ' + l.tierRedemptions.map(t => `${t.name}: ${nfmt(t.rewardsClaimed)} claims, ${nfmt(t.pointsRedeemed)} pts`).join(' | '));
+    }
+    if (l.segmentBreakdown?.length > 0) {
+      lines.push('Member segments: ' + l.segmentBreakdown.map(s => `${s.name}: ${nfmt(s.count)}`).join(' | '));
+    }
+    if (l.topReferrers?.length > 0) {
+      lines.push('Top referrers: ' + l.topReferrers.slice(0, 5).map(r => `${r.email} (${r.count})`).join(' | '));
+    }
+    if (l.topRewards?.length > 0) {
+      lines.push('Top claimed rewards (12mo): ' + l.topRewards.slice(0, 6).map(r => `${r.name} (${r.count})`).join(' | '));
+    }
   }
 
   return lines.join('\n');
 }
 
-function buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads) {
+function buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads, loyaltylion) {
   const isWIQ = brandName === 'Work IQ Tools';
-  const dataCtx = buildDataContext(shopify, klaviyo, ads, dateRange);
+  const dataCtx = buildDataContext(shopify, klaviyo, ads, loyaltylion, dateRange);
   const tail = `Write exactly 2 short paragraphs. Reference specific numbers, surface non-obvious correlations, flag anything that needs immediate attention, and end each paragraph with one concrete action. Be direct. Do not restate obvious facts.`;
 
   let intro;
@@ -1265,6 +1612,18 @@ function buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads) {
       `2. Flow revenue — which automated flows are the strongest performers and which are underperforming`,
       `3. Engagement health — open rate and click rate trends and what they imply about list quality`,
       `4. Any campaigns or flows that stand out as anomalies (unusually high or low performance)`,
+      ``,
+      tail,
+    ];
+  } else if (tab === 'eliterewards') {
+    // Real Avid Elite Rewards (LoyaltyLion) tab: loyalty program only
+    intro = [
+      `You are a sharp loyalty/retention analyst. Review the Real Avid Elite Rewards (LoyaltyLion) data for ${dateRange}.`,
+      `Focus your analysis on:`,
+      `1. Enrollment momentum — how new enrollees this period compares to the enrolled member base`,
+      `2. Points economy health — points issued vs. redeemed, outstanding points liability, and what it implies about engagement vs. financial exposure`,
+      `3. Tier and segment dynamics — how redemption and member counts break down across tiers, and what the At Risk/Win Back/Loyal segment mix suggests about retention priorities`,
+      `4. Referral and repeat-redemption behavior — how much of the member base is referral-driven, and whether redeemers tend to come back for more`,
       ``,
       tail,
     ];
@@ -1310,26 +1669,26 @@ function buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads) {
   return [...intro, '', dataCtx].join('\n');
 }
 
-function buildChatSystemPrompt(brandName, tab, dateRange, shopify, klaviyo, ads) {
+function buildChatSystemPrompt(brandName, tab, dateRange, shopify, klaviyo, ads, loyaltylion) {
   return [
     `You are a concise data analyst assistant for ${brandName}. The user is viewing their analytics dashboard for ${dateRange}.`,
     `Answer questions directly using specific numbers from the data. Keep responses brief (2-4 sentences) unless a detailed breakdown is explicitly requested. Do not add unnecessary caveats or disclaimers.`,
     '',
     'Current dashboard data:',
     '',
-    buildDataContext(shopify, klaviyo, ads, dateRange),
+    buildDataContext(shopify, klaviyo, ads, loyaltylion, dateRange),
   ].join('\n');
 }
 
 app.post('/api/insights', express.json({ limit: '1mb' }), async (req, res) => {
   try {
-    const { brand, tab, dateRange, shopify, klaviyo, ads, modal } = req.body;
+    const { brand, tab, dateRange, shopify, klaviyo, ads, loyaltylion, modal } = req.body;
     const brandNames = { ra: 'Real Avid', wiq: 'Work IQ Tools', oe: 'Outdoor Edge' };
     const brandName  = brandNames[brand] || brand;
 
     const prompt = (tab === 'modal' && modal)
       ? buildModalPrompt(brandName, dateRange, modal)
-      : buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads);
+      : buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads, loyaltylion);
 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -1379,11 +1738,20 @@ Campaign Performance table: Campaign, Spend, Revenue, ROAS, Purchases, Clicks, C
 Ad Set Performance table: Ad Set, Campaign, Spend, Revenue, ROAS, Purchases, Clicks, CPC
 Ad Performance table: Ad Name, Ad Set, Spend, Revenue, ROAS, Purchases, Clicks, CPC
 Data source: uploaded Meta Ads CSV export`,
+
+  eliterewards: `KPI row 1 (period toggle: 7D/30D/90D/1Y, not the global date picker): Enrolled Members, New Enrollees, Points Issued, Points Redeemed, Rewards Claimed
+KPI row 2 (lifetime/current snapshot, not period-scoped): Points Liability (outstanding), Avg Points/Member, Referred Members, Repeat Redemption Rate
+Tier Breakdown table: Tier, Members, % of Enrolled, Avg Points
+Redemption by Tier table (period-scoped): Tier, Rewards Claimed, Points Redeemed
+Member Insights Segments table: Segment (At Risk/Win Back/Loyal/etc.), Members, % of Enrolled
+Top Referrers table: Referrer, Members Referred
+Top Claimed Rewards table (trailing 12mo): Reward, Times Claimed
+Data source: LoyaltyLion API (Customers + Transactions) — customers synced ~every 12h (large account, ~470k records), transactions synced ~every 15 min — Real Avid only, no per-brand comparison`,
 };
 
-function buildDevFeedbackPrompt(brandName, tab, dateRange, shopify, klaviyo, ads) {
+function buildDevFeedbackPrompt(brandName, tab, dateRange, shopify, klaviyo, ads, loyaltylion) {
   const layout = TAB_LAYOUTS[tab] || `${tab} tab`;
-  const dataCtx = buildDataContext(shopify, klaviyo, ads, dateRange);
+  const dataCtx = buildDataContext(shopify, klaviyo, ads, loyaltylion, dateRange);
   return [
     `You are a dashboard UX/analytics consultant reviewing a multi-brand e-commerce analytics dashboard for ${brandName}.`,
     `The developer who built this dashboard is asking for your honest critique and suggestions.`,
@@ -1408,10 +1776,10 @@ function buildDevFeedbackPrompt(brandName, tab, dateRange, shopify, klaviyo, ads
 
 app.post('/api/devfeedback', express.json({ limit: '1mb' }), async (req, res) => {
   try {
-    const { brand, tab, dateRange, shopify, klaviyo, ads } = req.body;
+    const { brand, tab, dateRange, shopify, klaviyo, ads, loyaltylion } = req.body;
     const brandNames = { ra: 'Real Avid', wiq: 'Work IQ Tools', oe: 'Outdoor Edge' };
     const brandName  = brandNames[brand] || brand;
-    const prompt = buildDevFeedbackPrompt(brandName, tab, dateRange, shopify, klaviyo, ads);
+    const prompt = buildDevFeedbackPrompt(brandName, tab, dateRange, shopify, klaviyo, ads, loyaltylion);
 
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -1439,7 +1807,7 @@ app.post('/api/devfeedback', express.json({ limit: '1mb' }), async (req, res) =>
 
 app.post('/api/chat', express.json({ limit: '2mb' }), async (req, res) => {
   try {
-    const { brand, tab, dateRange, shopify, klaviyo, ads, modal, messages } = req.body;
+    const { brand, tab, dateRange, shopify, klaviyo, ads, loyaltylion, modal, messages } = req.body;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'No messages provided' });
     }
@@ -1457,7 +1825,7 @@ app.post('/api/chat', express.json({ limit: '2mb' }), async (req, res) => {
         ? base + `\n\nYou previously provided this analysis:\n${insightText}\n\nContinue the discussion, staying grounded in both the data and your prior analysis.`
         : base;
     } else {
-      system = buildChatSystemPrompt(brandName, tab, dateRange, shopify, klaviyo, ads);
+      system = buildChatSystemPrompt(brandName, tab, dateRange, shopify, klaviyo, ads, loyaltylion);
       if (insightText) {
         system += `\n\nYou previously provided the following analysis of this data:\n${insightText}\n\nThe user wants to follow up. Keep your responses grounded in the data and your prior analysis.`;
       }
