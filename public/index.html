@@ -4690,10 +4690,12 @@ function buildInsightsPayload(tab) {
     const daily = adsData.daily || [];
     payload.ads = {
       ...adsData.totals,
-      campaigns:   (adsData.campaigns || []).slice(0, 10),
-      dailyRecent: daily.slice(-30).map(d => ({ date: d.date, spend: d.spend, revenue: d.revenue, roas: d.roas })),
-      adsStart:    daily.length > 0 ? daily[0].date : null,
-      adsEnd:      daily.length > 0 ? daily[daily.length - 1].date : null,
+      campaigns: adsData.campaigns || [],
+      adsets:    adsData.adsets    || [],
+      ads:       adsData.ads       || [],
+      daily:     daily.map(d => ({ date: d.date, spend: d.spend, revenue: d.revenue, roas: d.roas, purchases: d.purchases, clicks: d.clicks, impressions: d.impressions })),
+      adsStart:  daily.length > 0 ? daily[0].date : null,
+      adsEnd:    daily.length > 0 ? daily[daily.length - 1].date : null,
     };
   }
 

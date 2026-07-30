@@ -1532,6 +1532,15 @@ function buildDataContext(shopify, klaviyo, ads, loyaltylion, dateRange) {
 
   if (ads) {
     const a = ads;
+    const listWithTruncation = (arr, n, fmtLine) => {
+      const out = arr.slice(0, n).map(fmtLine);
+      if (arr.length > n) {
+        const restSpend = arr.slice(n).reduce((s, x) => s + (x.spend || 0), 0);
+        out.push(`  … +${arr.length - n} more, combined spend ${sfmt(restSpend)}`);
+      }
+      return out;
+    };
+
     lines.push('── META ADS ──');
     // Fix 1 — explicit date range + historical warning so Claude doesn't recommend acting on finished campaigns
     if (a.adsStart && a.adsEnd) {
@@ -1540,19 +1549,35 @@ function buildDataContext(shopify, klaviyo, ads, loyaltylion, dateRange) {
     lines.push(`Spend: ${sfmt(a.spend)} | Revenue: ${sfmt(a.revenue)} | ROAS: ${a.roas?.toFixed(2)}x`);
     lines.push(`Purchases: ${nfmt(a.purchases)} | Cost/purchase: ${sfmt(a.costPerPurchase)} | CPC: ${sfmt(a.avgCpc)}`);
     lines.push(`Clicks: ${nfmt(a.clicks)} | Impressions: ${nfmt(a.impressions)}`);
-    if (a.campaigns?.length > 0) {
-      lines.push('By campaign:');
-      a.campaigns.slice(0, 8).forEach(c =>
-        lines.push(`  ${c.name}: ${sfmt(c.spend)} spend | ${c.roas?.toFixed(2)}x ROAS | ${nfmt(c.purchases || 0)} purchases | ${sfmt(c.cpc)} CPC`)
+
+    if (a.daily?.length > 0) {
+      lines.push('');
+      lines.push(`Daily breakdown — every day in the selected window (${a.daily.length} days). Use this directly to answer questions about any sub-range, e.g. "the most recent 7 days":`);
+      lines.push('Date | Spend | Revenue | ROAS | Purchases | Clicks | Impressions');
+      a.daily.forEach(d =>
+        lines.push(`${d.date} | ${sfmt(d.spend)} | ${sfmt(d.revenue)} | ${(d.roas || 0).toFixed(2)}x | ${nfmt(d.purchases || 0)} | ${nfmt(d.clicks || 0)} | ${nfmt(d.impressions || 0)}`)
       );
     }
-    if (a.dailyRecent?.length > 1) {
-      const mid  = Math.floor(a.dailyRecent.length / 2);
-      const h1r  = a.dailyRecent.slice(0, mid).reduce((s, d) => s + d.roas, 0) / (mid || 1);
-      const h2r  = a.dailyRecent.slice(mid).reduce((s, d) => s + d.roas, 0) / ((a.dailyRecent.length - mid) || 1);
-      const dStart = a.dailyRecent[0].date;
-      const dEnd   = a.dailyRecent[a.dailyRecent.length - 1].date;
-      lines.push(`ROAS trend: ${h1r.toFixed(2)}x → ${h2r.toFixed(2)}x (${dStart} to ${dEnd})`);
+    if (a.campaigns?.length > 0) {
+      lines.push('');
+      lines.push(`By campaign (${a.campaigns.length} total):`);
+      listWithTruncation(a.campaigns, 40, c =>
+        `  ${c.name}: ${sfmt(c.spend)} spend | ${sfmt(c.revenue)} rev | ${(c.roas || 0).toFixed(2)}x ROAS | ${nfmt(c.purchases || 0)} purchases | ${nfmt(c.clicks || 0)} clicks | ${sfmt(c.cpc)} CPC`
+      ).forEach(l => lines.push(l));
+    }
+    if (a.adsets?.length > 0) {
+      lines.push('');
+      lines.push(`By ad set (${a.adsets.length} total):`);
+      listWithTruncation(a.adsets, 40, s =>
+        `  ${s.name} [${s.campaign}]: ${sfmt(s.spend)} spend | ${sfmt(s.revenue)} rev | ${(s.roas || 0).toFixed(2)}x ROAS | ${nfmt(s.purchases || 0)} purchases | ${sfmt(s.cpc)} CPC`
+      ).forEach(l => lines.push(l));
+    }
+    if (a.ads?.length > 0) {
+      lines.push('');
+      lines.push(`By ad (${a.ads.length} total):`);
+      listWithTruncation(a.ads, 40, ad =>
+        `  ${ad.name} [${ad.adset}]: ${sfmt(ad.spend)} spend | ${sfmt(ad.revenue)} rev | ${(ad.roas || 0).toFixed(2)}x ROAS | ${nfmt(ad.purchases || 0)} purchases | ${sfmt(ad.cpc)} CPC`
+      ).forEach(l => lines.push(l));
     }
     lines.push('');
   }
@@ -1632,6 +1657,7 @@ function buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads, l
     intro = [
       `You are a sharp performance marketing analyst. Review the Work IQ Tools Meta Ads data for ${dateRange}.`,
       `IMPORTANT: This is historical CSV data. The campaigns shown may already be paused or finished. Do not recommend pausing, scaling, or restarting specific campaigns — focus on what the data reveals about performance patterns and what to apply going forward.`,
+      `You have a full day-by-day breakdown plus campaign, ad set, and ad level detail below for the entire selected window. If asked about a narrower sub-range (e.g. "the most recent 7 days" within a 30-day view), compute it yourself directly from the daily breakdown — never say that level of detail isn't available.`,
       `Focus your analysis on:`,
       `1. ROAS trends — which campaigns delivered profitable returns vs. burned budget, and what drove the difference`,
       `2. Cost efficiency — CPC and cost-per-purchase trends across the window`,
@@ -1673,6 +1699,7 @@ function buildChatSystemPrompt(brandName, tab, dateRange, shopify, klaviyo, ads,
   return [
     `You are a concise data analyst assistant for ${brandName}. The user is viewing their analytics dashboard for ${dateRange}.`,
     `Answer questions directly using specific numbers from the data. Keep responses brief (2-4 sentences) unless a detailed breakdown is explicitly requested. Do not add unnecessary caveats or disclaimers.`,
+    `If asked about a narrower time window than the one shown (e.g. "the last 7 days" within a 30-day view), or about a specific campaign/ad set/ad, compute or look it up yourself from the daily and campaign/ad-set/ad breakdowns below — don't say that data isn't available.`,
     '',
     'Current dashboard data:',
     '',
