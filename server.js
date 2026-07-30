@@ -916,34 +916,52 @@ function aggregateAds(rows) {
     dailyMap[dateKey].clicks      += clicks;
     dailyMap[dateKey].impressions += impressions;
 
+    // Raw Meta-scheduled start/end (distinct from the reporting window) — surfaces recent
+    // launches so a ramp-up/learning-phase period isn't judged the same as steady-state performance.
+    const scheduleStart = row['Starts'];
+    const hasSchedule = scheduleStart && scheduleStart !== 'undefined' && scheduleStart.trim() !== '';
+
     const camp = row['Campaign name'] || 'Unknown';
-    if (!campaignMap[camp]) campaignMap[camp] = { name: camp, spend: 0, revenue: 0, purchases: 0, clicks: 0, lastDate: null };
+    if (!campaignMap[camp]) campaignMap[camp] = { name: camp, spend: 0, revenue: 0, purchases: 0, clicks: 0, firstDate: null, lastDate: null, starts: new Set() };
     campaignMap[camp].spend     += spend;
     campaignMap[camp].revenue   += revenue;
     campaignMap[camp].purchases += purchases;
     campaignMap[camp].clicks    += clicks;
-    if (!campaignMap[camp].lastDate || dateKey > campaignMap[camp].lastDate) campaignMap[camp].lastDate = dateKey;
+    if (!campaignMap[camp].firstDate || dateKey < campaignMap[camp].firstDate) campaignMap[camp].firstDate = dateKey;
+    if (!campaignMap[camp].lastDate  || dateKey > campaignMap[camp].lastDate)  campaignMap[camp].lastDate  = dateKey;
+    if (hasSchedule) campaignMap[camp].starts.add(scheduleStart);
 
     const adset = row['Ad set name'] || 'Unknown';
-    if (!adsetMap[adset]) adsetMap[adset] = { name: adset, campaign: camp, spend: 0, revenue: 0, purchases: 0, clicks: 0 };
+    if (!adsetMap[adset]) adsetMap[adset] = { name: adset, campaign: camp, spend: 0, revenue: 0, purchases: 0, clicks: 0, firstDate: null, lastDate: null, starts: new Set() };
     adsetMap[adset].spend     += spend;
     adsetMap[adset].revenue   += revenue;
     adsetMap[adset].purchases += purchases;
     adsetMap[adset].clicks    += clicks;
+    if (!adsetMap[adset].firstDate || dateKey < adsetMap[adset].firstDate) adsetMap[adset].firstDate = dateKey;
+    if (!adsetMap[adset].lastDate  || dateKey > adsetMap[adset].lastDate)  adsetMap[adset].lastDate  = dateKey;
+    if (hasSchedule) adsetMap[adset].starts.add(scheduleStart);
 
     const adName = row['Ad name'] || 'Unknown';
-    if (!adMap[adName]) adMap[adName] = { name: adName, adset, spend: 0, revenue: 0, purchases: 0, clicks: 0 };
+    if (!adMap[adName]) adMap[adName] = { name: adName, adset, spend: 0, revenue: 0, purchases: 0, clicks: 0, firstDate: null, lastDate: null, starts: new Set() };
     adMap[adName].spend     += spend;
     adMap[adName].revenue   += revenue;
     adMap[adName].purchases += purchases;
     adMap[adName].clicks    += clicks;
+    if (!adMap[adName].firstDate || dateKey < adMap[adName].firstDate) adMap[adName].firstDate = dateKey;
+    if (!adMap[adName].lastDate  || dateKey > adMap[adName].lastDate)  adMap[adName].lastDate  = dateKey;
+    if (hasSchedule) adMap[adName].starts.add(scheduleStart);
   }
 
   const daily = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
   daily.forEach(d => { d.roas = d.spend > 0 ? +(d.revenue / d.spend).toFixed(3) : 0; });
 
   const withRoas = arr => arr
-    .map(c => ({ ...c, roas: c.spend > 0 ? +(c.revenue / c.spend).toFixed(3) : 0, cpc: c.clicks > 0 ? +(c.spend / c.clicks).toFixed(3) : 0 }))
+    .map(c => ({
+      ...c,
+      starts: [...c.starts].sort(),
+      roas: c.spend > 0 ? +(c.revenue / c.spend).toFixed(3) : 0,
+      cpc:  c.clicks > 0 ? +(c.spend / c.clicks).toFixed(3) : 0,
+    }))
     .sort((a, b) => b.spend - a.spend);
 
   return {
@@ -1541,6 +1559,15 @@ function buildDataContext(shopify, klaviyo, ads, loyaltylion, dateRange) {
       return out;
     };
 
+    // fmtWindow — surfaces when an object was actually active/launched, so a partial-window
+    // object's blended average isn't read the same as a mature, full-window one.
+    const fmtWindow = o => {
+      const bits = [];
+      if (o.firstDate && o.lastDate) bits.push(`active ${o.firstDate}→${o.lastDate}`);
+      if (o.starts?.length) bits.push(o.starts.length > 1 ? `scheduled starts: ${o.starts.join(', ')} (multiple — staggered launches)` : `scheduled start: ${o.starts[0]}`);
+      return bits.length ? ` | ${bits.join(' | ')}` : '';
+    };
+
     lines.push('── META ADS ──');
     // Fix 1 — explicit date range + historical warning so Claude doesn't recommend acting on finished campaigns
     if (a.adsStart && a.adsEnd) {
@@ -1560,23 +1587,23 @@ function buildDataContext(shopify, klaviyo, ads, loyaltylion, dateRange) {
     }
     if (a.campaigns?.length > 0) {
       lines.push('');
-      lines.push(`By campaign (${a.campaigns.length} total):`);
+      lines.push(`By campaign (${a.campaigns.length} total) — "active" range and "scheduled start" show whether this ran the full window or launched partway through:`);
       listWithTruncation(a.campaigns, 40, c =>
-        `  ${c.name}: ${sfmt(c.spend)} spend | ${sfmt(c.revenue)} rev | ${(c.roas || 0).toFixed(2)}x ROAS | ${nfmt(c.purchases || 0)} purchases | ${nfmt(c.clicks || 0)} clicks | ${sfmt(c.cpc)} CPC`
+        `  ${c.name}: ${sfmt(c.spend)} spend | ${sfmt(c.revenue)} rev | ${(c.roas || 0).toFixed(2)}x ROAS | ${nfmt(c.purchases || 0)} purchases | ${nfmt(c.clicks || 0)} clicks | ${sfmt(c.cpc)} CPC${fmtWindow(c)}`
       ).forEach(l => lines.push(l));
     }
     if (a.adsets?.length > 0) {
       lines.push('');
       lines.push(`By ad set (${a.adsets.length} total):`);
       listWithTruncation(a.adsets, 40, s =>
-        `  ${s.name} [${s.campaign}]: ${sfmt(s.spend)} spend | ${sfmt(s.revenue)} rev | ${(s.roas || 0).toFixed(2)}x ROAS | ${nfmt(s.purchases || 0)} purchases | ${sfmt(s.cpc)} CPC`
+        `  ${s.name} [${s.campaign}]: ${sfmt(s.spend)} spend | ${sfmt(s.revenue)} rev | ${(s.roas || 0).toFixed(2)}x ROAS | ${nfmt(s.purchases || 0)} purchases | ${sfmt(s.cpc)} CPC${fmtWindow(s)}`
       ).forEach(l => lines.push(l));
     }
     if (a.ads?.length > 0) {
       lines.push('');
       lines.push(`By ad (${a.ads.length} total):`);
       listWithTruncation(a.ads, 40, ad =>
-        `  ${ad.name} [${ad.adset}]: ${sfmt(ad.spend)} spend | ${sfmt(ad.revenue)} rev | ${(ad.roas || 0).toFixed(2)}x ROAS | ${nfmt(ad.purchases || 0)} purchases | ${sfmt(ad.cpc)} CPC`
+        `  ${ad.name} [${ad.adset}]: ${sfmt(ad.spend)} spend | ${sfmt(ad.revenue)} rev | ${(ad.roas || 0).toFixed(2)}x ROAS | ${nfmt(ad.purchases || 0)} purchases | ${sfmt(ad.cpc)} CPC${fmtWindow(ad)}`
       ).forEach(l => lines.push(l));
     }
     lines.push('');
@@ -1658,6 +1685,12 @@ function buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads, l
       `You are a sharp performance marketing analyst. Review the Work IQ Tools Meta Ads data for ${dateRange}.`,
       `IMPORTANT: This is historical CSV data. The campaigns shown may already be paused or finished. Do not recommend pausing, scaling, or restarting specific campaigns — focus on what the data reveals about performance patterns and what to apply going forward.`,
       `You have a full day-by-day breakdown plus campaign, ad set, and ad level detail below for the entire selected window. If asked about a narrower sub-range (e.g. "the most recent 7 days" within a 30-day view), compute it yourself directly from the daily breakdown — never say that level of detail isn't available.`,
+      `INVESTIGATE BEFORE YOU JUDGE — don't treat a ROAS/CPC/spend number as a verdict on a campaign, ad set, or ad until you've checked for context that could explain it:`,
+      `  • Naming signals: look for "Test", "V2", "DUPLICATE", "Control", "Champion"/"Contender", or similar in campaign/ad set/ad names — these mean the objects are a deliberate comparison against each other, not independent results. Say so and compare them as a pair, not in isolation.`,
+      `  • Timing signals: each campaign/ad set/ad below shows its active date range within the window and, when known, its scheduled start date. If one only started partway through (or its scheduled start is recent relative to the window), its aggregate blends a ramp-up/learning period with steady-state performance — call that out explicitly and don't judge it on the same footing as an object that ran the full window.`,
+      `  • Change-point signals: scan the daily breakdown for an abrupt shift (a sudden ROAS/spend/CTR jump or cliff) — if you spot one, name the date and segment your read into before/after rather than reporting one blended number across it.`,
+      `  • This is CSV export data, not a live Ads Manager activity log — you cannot confirm the actual cause (a budget, bid, or targeting edit) behind any shift you spot. Flag the pattern and say it's worth checking in Ads Manager rather than asserting a cause.`,
+      `  • Never recommend pausing, scaling, or restarting a specific campaign/ad set/ad based on a number that might really be explained by a recent launch, a test/duplicate counterpart elsewhere in the account, or a mixed pre/post-change window.`,
       `Focus your analysis on:`,
       `1. ROAS trends — which campaigns delivered profitable returns vs. burned budget, and what drove the difference`,
       `2. Cost efficiency — CPC and cost-per-purchase trends across the window`,
@@ -1670,6 +1703,7 @@ function buildInsightsPrompt(brandName, tab, dateRange, shopify, klaviyo, ads, l
     // WIQ Overview: cross-channel view — both email AND Meta Ads impact on overall revenue
     intro = [
       `You are a sharp performance marketing analyst. Review the Work IQ Tools dashboard for ${dateRange}.`,
+      `For the Meta Ads portion specifically: before flagging a campaign/ad set/ad's ROAS or cost efficiency as good or bad, check its name for test/duplicate/versioning signals (Test, V2, DUPLICATE, Champion/Contender) and its active date range for a partial-window launch — a blended number that mixes a ramp-up period or a test counterpart with steady-state performance isn't a clean verdict.`,
       `Focus your analysis on:`,
       `1. The combined impact of Meta Ads and email on total Shopify revenue — which channel is driving more and at what cost`,
       `2. Meta Ads efficiency this period — ROAS, cost-per-purchase, and any trends worth flagging`,
@@ -1700,6 +1734,7 @@ function buildChatSystemPrompt(brandName, tab, dateRange, shopify, klaviyo, ads,
     `You are a concise data analyst assistant for ${brandName}. The user is viewing their analytics dashboard for ${dateRange}.`,
     `Answer questions directly using specific numbers from the data. Keep responses brief (2-4 sentences) unless a detailed breakdown is explicitly requested. Do not add unnecessary caveats or disclaimers.`,
     `If asked about a narrower time window than the one shown (e.g. "the last 7 days" within a 30-day view), or about a specific campaign/ad set/ad, compute or look it up yourself from the daily and campaign/ad-set/ad breakdowns below — don't say that data isn't available.`,
+    ...(ads ? [`Before answering a "should I pause/scale this" question or judging a Meta Ads number as good or bad, check the campaign/ad set/ad's name for test/duplicate/versioning signals and its active date range for a partial-window launch — a blended number covering a ramp-up period or a deliberate A/B test counterpart isn't a clean verdict on its own. Say what you checked, not just the number.`] : []),
     '',
     'Current dashboard data:',
     '',
