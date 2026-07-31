@@ -98,22 +98,54 @@ background:var(--card2);border:1px solid var(--border);border-radius:10px;paddin
 .msel .clr{font-size:12px;color:var(--accent);cursor:pointer;padding:4px 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
 #stip{position:fixed;z-index:2000;background:#0b0d11;border:1px solid var(--accent);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);pointer-events:none;display:none;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.6)}
 #stip b{color:var(--accent)}
+.gcard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:14px 0}
+.gcard .famcard{background:var(--card2)}
+.ghdr{display:flex;align-items:baseline;gap:10px;cursor:pointer;user-select:none;flex-wrap:wrap}
+.ghdr h2{font-size:17px}
+.ghdr .tri{color:var(--accent);font-size:13px;width:14px;display:inline-block}
+.ghdr .stats{font-size:12.5px;color:var(--muted)}
+.ghdr:hover h2{color:var(--accent)}
+.gbody{margin-top:10px}
+.gchartwrap{overflow-x:auto}
+.ctlbtn{background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer}
+.ctlbtn:hover{color:var(--accent);border-color:var(--accent)}
 </style>
 </head>
 <body>
 <h1>Creative Strategy Reference — Video Assets (Sep 2024 – present)</h1>
-<div class="sub">What each video concept was attempting to capture, grouped by actor. Tags: <span class="tag style">Production style</span>
+<div class="sub">What each video concept was attempting to capture, grouped however you choose below. Tags: <span class="tag style">Production style</span>
 <span class="tag talent">Talent</span> <span class="tag hookc">Hook angle</span> <span class="tag setting">Setting</span>
-&nbsp;·&nbsp; <a href="WorkIQ_Video_Dashboard.html">← Back to dashboard</a> &nbsp;·&nbsp; Last refreshed: <b>Jul 31, 2026 09:22 AM</b></div>
+&nbsp;·&nbsp; <a href="WorkIQ_Video_Dashboard.html">← Back to dashboard</a> &nbsp;·&nbsp; Last refreshed: <b>Jul 31, 2026 11:21 AM</b></div>
 <div class="sub">Strategy legend — <b>Style:</b> Native = raw/workshop footage · Studio = polished production · Legacy = pre-2026 winners.
 <b>Talent:</b> UGC = customer · PRO = trade professional · EXP = on-camera expert · STU = product only, no face · VoiceOver = narrated demo.
 <b>Hooks:</b> 0.0 Curiosity · 1.0 To-Do-List/Control · 3.0 Old-Vise Challenger · 4.0 Problem→Solution · 5.0 Pro/Performance · 7.0 Giftability.
 <b>Hook (3s) metric:</b> 3-second plays ÷ impressions, measured on the 2026 YTD window only (Meta retains view metrics ~13 months) — blank for videos retired before 2026.
 Videos under $500 lifetime spend are excluded.</div>
 <div class="controls" style="margin-top:14px">
+  <label class="chk">Group by
+  <select id="grpBy">
+    <option value="actor">Actor</option>
+    <option value="familyLabel">Creative concept</option>
+    <option value="style">Production style</option>
+    <option value="talent">Talent type</option>
+    <option value="hookCode">Hook angle</option>
+    <option value="setting">Setting</option>
+    <option value="aspect">Aspect ratio</option>
+  </select></label>
+  <label class="chk">Group chart
+  <select id="grpMet">
+    <option value="spend">Monthly spend</option>
+    <option value="roas">Monthly ROAS</option>
+    <option value="cpa">Monthly CPA</option>
+  </select></label>
+  <button id="expAll" class="ctlbtn">Expand all</button>
+  <button id="colAll" class="ctlbtn">Collapse all</button>
+  <span class="chk" style="font-size:12px">groups start collapsed — click a header for video cards · choices saved in your browser</span>
+</div>
+<div class="controls">
   <span id="fActor"></span><span id="fStyle"></span><span id="fTalent"></span><span id="fHook"></span>
   <span id="fSetting"></span><span id="fAspect"></span><span id="fVariant"></span>
-  <button id="reset" style="background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">Reset all</button>
+  <button id="reset" class="ctlbtn">Reset all</button>
 </div>
 <div class="sub" id="filterSummary" style="margin-bottom:6px"></div>
 <div class="card"><h2>Filtered rollup — spend by concept (color = ROAS vs target)</h2>
@@ -218,11 +250,15 @@ document.getElementById("reset").onclick=()=>{
 };
 
 function agg(vids){
-  const s={spend:0,value:0,purch:0,impr:0,plays:0};
-  vids.forEach(d=>{s.spend+=d.spend;s.value+=d.value;s.purch+=d.purchases;s.impr+=d.impressions;s.plays+=d.plays3s;});
+  const s={spend:0,value:0,purch:0,impr:0,plays:0,imps26:0};
+  vids.forEach(d=>{s.spend+=d.spend;s.value+=d.value;s.purch+=d.purchases;s.impr+=d.impressions;
+    // Hook is measured on the 2026 window only. Lifetime impressions would dilute it for
+    // groups with pre-2026 history, so reconstruct each video's 2026 impressions from its
+    // own hook rate (imps26 = plays / rate) and aggregate on that basis instead.
+    if(d.hook>0 && d.plays3s>0){ s.plays+=d.plays3s; s.imps26+=d.plays3s/(d.hook/100); }});
   s.roas = s.spend? s.value/s.spend : null;
   s.cpa = s.purch? s.spend/s.purch : null;
-  s.hook = (s.impr && s.plays)? 100*s.plays/s.impr : null;
+  s.hook = s.imps26? 100*s.plays/s.imps26 : null;
   return s;
 }
 
@@ -248,6 +284,74 @@ function renderRefChart(visible){
   });
 }
 
+// ---- Grouping: any strategy dimension, collapsible, KPI rollup + monthly chart per group ----
+const DIMS = {actor:"Actor", familyLabel:"Creative concept", style:"Production style",
+  talent:"Talent type", hookCode:"Hook angle", setting:"Setting", aspect:"Aspect ratio"};
+let GRP="actor", GMET="spend";
+try{
+  const g=localStorage.getItem("wiq_ref_grp"); if(g && DIMS[g]) GRP=g;
+  const m=localStorage.getItem("wiq_ref_met"); if(["spend","roas","cpa"].includes(m)) GMET=m;
+}catch(e){}
+let EXP={}; // expanded group keys, persisted per grouping dimension (default: all collapsed)
+function loadExp(){ try{ EXP=JSON.parse(localStorage.getItem("wiq_ref_exp_"+GRP)||"{}"); }catch(e){ EXP={}; } }
+function saveExp(){ try{ localStorage.setItem("wiq_ref_exp_"+GRP, JSON.stringify(EXP)); }catch(e){} }
+loadExp();
+const GCAP = {
+  spend:"Monthly spend, colored by that month's ROAS (Sep 2024 → today; ticks mark January)",
+  roas:"Monthly ROAS, colored vs target — dashed line = breakeven. Low-spend months are noisy; hover for spend.",
+  cpa:"Monthly CPA — taller bar = worse. Colored by that month's ROAS; months with no purchases show as baseline stubs."};
+
+function groupChart(vids){
+  const bw=9, gap=2, plotH=58, base=62, H=76;
+  const g={};
+  vids.forEach(d=>Object.entries(d.months||{}).forEach(([m,v])=>{
+    (g[m]=g[m]||[0,0,0]); g[m][0]+=v[0]; g[m][1]+=v[1]; g[m][2]+=v[2];}));
+  const val = m=>{const v=g[m]; if(!v||v[0]<=0) return null;
+    return GMET==="spend"? v[0] : GMET==="roas"? v[2]/v[0] : (v[1]? v[0]/v[1] : null);};
+  let max=0; AXIS.forEach(m=>{const x=val(m); if(x!=null && x>max) max=x;});
+  if(max<=0) max=1;
+  const W = AXIS.length*(bw+gap);
+  const ticks = AXIS.map((m,i)=> m.endsWith("-01")
+    ? `<line x1="${i*(bw+gap)-1}" y1="0" x2="${i*(bw+gap)-1}" y2="${base}" stroke="#3a4150" stroke-width="1"/>`+
+      `<text x="${i*(bw+gap)+2}" y="${H-2}" font-size="9" fill="#9aa3b2">${m.slice(0,4)}</text>` : "").join("");
+  const bars = AXIS.map((m,i)=>{
+    const v=g[m], x=val(m);
+    if(x==null)
+      return `<rect x="${i*(bw+gap)}" y="${base-1.5}" width="${bw}" height="1.5" fill="#262b35" data-tip="<b>${m}</b> · ${v&&v[0]>0? fmt$(v[0])+" · no purchases":"no spend"}"/>`;
+    const frac = GMET==="spend"? Math.sqrt(x/max) : x/max;
+    const bh = Math.max(2, Math.round(plotH*frac));
+    const roas = v[2]/v[0];
+    const cpa = v[1]? v[0]/v[1] : null;
+    return `<rect x="${i*(bw+gap)}" y="${base-bh}" width="${bw}" height="${bh}" rx="1.5" fill="${roasColor(roas)}" data-tip="<b>${m}</b> · ${fmt$(v[0])} · ${v[1]} purch · ROAS ${roas.toFixed(2)} · CPA ${cpa==null?"—":fmt$(cpa)}"/>`;
+  }).join("");
+  let ref="";
+  if(GMET==="roas" && max>=1){
+    const y=(base-plotH*(1/max)).toFixed(1);
+    ref = `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#5b6270" stroke-dasharray="4 3"/>`;
+  }
+  return `<div class="gchartwrap"><svg width="${W}" height="${H}" style="display:block;margin:6px 0 2px">${ticks}${ref}${bars}</svg></div>`;
+}
+
+function famCard(fkey, vidsIn){
+  const fam = FAMS[fkey]||{label:fkey,description:"",style:"—",talent:"—",hook:"—",setting:"—",source:"inferred"};
+  const vids = vidsIn.slice().sort((a,b)=>b.spend-a.spend);
+  const t = agg(vids);
+  return `<div class="famcard">
+  <h3>${fam.label} &nbsp;${roasPill(t.roas)} <span class="src">${fam.source==="inferred"?"(strategy inferred)":""}</span></h3>
+  <div class="meta"><span class="tag style">${fam.style}</span><span class="tag talent">${fam.talent}</span>
+    <span class="tag hookc">${fam.hook}</span><span class="tag setting">${fam.setting}</span></div>
+  <div class="desc">${fam.description}</div>
+  ${famSpark(vids)}<div class="sub" style="margin:0 0 8px;font-size:11px">Monthly spend, colored by that month's ROAS (Sep 2024 → today)</div>
+  <table><thead><tr><th>File</th><th>Aspect</th><th>Variant</th><th>Ran</th><th>Days</th><th>Spend</th><th>ROAS</th><th>CPA</th><th>Purch</th><th>Revenue</th><th>Hook '26</th></tr></thead>
+  <tbody>${vids.map(d=>`<tr><td class="name" title="${d.name}">${d.thumb?`<img class="refthumb" src="${d.thumb}" alt="">`:""}${d.permalink?`<a class="vname" href="${d.permalink}" target="_blank" rel="noopener">${d.name}</a>`:d.name}</td>
+    <td>${d.aspect}</td><td>${d.variant}</td><td style="font-size:12px;color:var(--muted)">${ranTxt(d)}</td><td>${d.daysActive}d</td><td>${fmt$(d.spend)}</td><td>${roasPill(d.roas)}</td>
+    <td>${fmt$(d.cpa)}</td><td>${d.purchases}</td><td>${fmt$(d.value)}</td><td>${fmtP(d.hook)}</td></tr>`).join("")}
+  <tr class="totrow"><td>Total (${vids.length} file${vids.length>1?"s":""})</td><td></td><td></td><td></td><td>${vids.reduce((t2,d)=>t2+d.daysActive,0)}d</td>
+    <td>${fmt$(t.spend)}</td><td>${roasPill(t.roas)}</td><td>${fmt$(t.cpa)}</td><td>${t.purch}</td><td>${fmt$(t.value)}</td><td>${fmtP(t.hook)}</td></tr>
+  </tbody></table>
+  </div>`;
+}
+
 function renderCards(){
   const visible = DATA.filter(d=>Object.entries(SELECTS).every(([id,[key]])=>mpass(id, d[key])));
   const active = Object.keys(SELECTS).map(mdesc).filter(Boolean);
@@ -257,40 +361,52 @@ function renderCards(){
     ? "Filtered — <b>"+active.join(" · ")+"</b>" : "All videos (no filters)")+
     ` &nbsp;→&nbsp; ${visible.length} videos · <b>${fmt$(tot.spend)}</b> spend · ROAS <b>${tot.roas==null?"—":tot.roas.toFixed(2)}</b> · ${tot.purch} purchases · ${fmt$(tot.value)} revenue`;
 
-  const byActor = {};
+  const byG = {};
   visible.forEach(d=>{
-    (byActor[d.actor]=byActor[d.actor]||{}); (byActor[d.actor][d.family]=byActor[d.actor][d.family]||[]).push(d);});
-  const actorOrder = Object.keys(byActor).sort((a,b)=>
-    agg(Object.values(byActor[b]).flat()).spend - agg(Object.values(byActor[a]).flat()).spend);
+    const k = (d[GRP]!=null && d[GRP]!=="") ? d[GRP] : "—";
+    (byG[k]=byG[k]||{}); (byG[k][d.family]=byG[k][d.family]||[]).push(d);});
+  const order = Object.keys(byG).sort((a,b)=>
+    agg(Object.values(byG[b]).flat()).spend - agg(Object.values(byG[a]).flat()).spend);
 
-  document.getElementById("cards").innerHTML = actorOrder.map(actor=>{
-    const fams = byActor[actor];
-    const aAll = Object.values(fams).flat();
-    const aTot = agg(aAll);
+  document.getElementById("cards").innerHTML = order.map(gk=>{
+    const fams = byG[gk];
+    const all = Object.values(fams).flat();
+    const t = agg(all);
+    const open = !!EXP[gk];
+    const nFam = Object.keys(fams).length;
     const famOrder = Object.keys(fams).sort((x,y)=>agg(fams[y]).spend-agg(fams[x]).spend);
-    const cards = famOrder.map(fkey=>{
-      const fam = FAMS[fkey]||{label:fkey,description:"",style:"—",talent:"—",hook:"—",setting:"—",source:"inferred"};
-      const vids = fams[fkey].sort((a,b)=>b.spend-a.spend);
-      const t = agg(vids);
-      return `<div class="famcard">
-      <h3>${fam.label} &nbsp;${roasPill(t.roas)} <span class="src">${fam.source==="inferred"?"(strategy inferred)":""}</span></h3>
-      <div class="meta"><span class="tag style">${fam.style}</span><span class="tag talent">${fam.talent}</span>
-        <span class="tag hookc">${fam.hook}</span><span class="tag setting">${fam.setting}</span></div>
-      <div class="desc">${fam.description}</div>
-      ${famSpark(vids)}<div class="sub" style="margin:0 0 8px;font-size:11px">Monthly spend, colored by that month's ROAS (Sep 2024 → today)</div>
-      <table><thead><tr><th>File</th><th>Aspect</th><th>Variant</th><th>Ran</th><th>Days</th><th>Spend</th><th>ROAS</th><th>CPA</th><th>Purch</th><th>Revenue</th><th>Hook '26</th></tr></thead>
-      <tbody>${vids.map(d=>`<tr><td class="name" title="${d.name}">${d.thumb?`<img class="refthumb" src="${d.thumb}" alt="">`:""}${d.permalink?`<a class="vname" href="${d.permalink}" target="_blank" rel="noopener">${d.name}</a>`:d.name}</td>
-        <td>${d.aspect}</td><td>${d.variant}</td><td style="font-size:12px;color:var(--muted)">${ranTxt(d)}</td><td>${d.daysActive}d</td><td>${fmt$(d.spend)}</td><td>${roasPill(d.roas)}</td>
-        <td>${fmt$(d.cpa)}</td><td>${d.purchases}</td><td>${fmt$(d.value)}</td><td>${fmtP(d.hook)}</td></tr>`).join("")}
-      <tr class="totrow"><td>Total (${vids.length} file${vids.length>1?"s":""})</td><td></td><td></td><td></td><td>${vids.reduce((t2,d)=>t2+d.daysActive,0)}d</td>
-        <td>${fmt$(t.spend)}</td><td>${roasPill(t.roas)}</td><td>${fmt$(t.cpa)}</td><td>${t.purch}</td><td>${fmt$(t.value)}</td><td>${fmtP(t.hook)}</td></tr>
-      </tbody></table>
-      </div>`;}).join("");
-    return `<div class="actorhdr"><h2>${actor}</h2>
-      <span class="stats">${Object.keys(fams).length} concept${Object.keys(fams).length>1?"s":""} · ${aAll.length} videos ·
-      ${fmt$(aTot.spend)} spend · ROAS ${aTot.roas==null?"—":aTot.roas.toFixed(2)} · CPA ${fmt$(aTot.cpa)} · Hook ${fmtP(aTot.hook)}</span></div>`+cards;
+    const kpis = [["Spend",fmt$(t.spend)],["ROAS",t.roas==null?"—":t.roas.toFixed(2)],
+      ["CPA",fmt$(t.cpa)],["Hook (3s '26)",fmtP(t.hook)],["Purchases",t.purch],
+      ["Revenue",fmt$(t.value)],["Videos",all.length]]
+      .map(([l,v])=>`<div class="sk"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+    return `<div class="gcard">
+      <div class="ghdr" data-g="${String(gk).replace(/"/g,"&quot;")}" title="Click to ${open?"collapse":"expand"} video cards">
+        <span class="tri">${open?"▾":"▸"}</span><h2>${gk}</h2>
+        <span class="stats">${DIMS[GRP]} · ${nFam} concept${nFam>1?"s":""} · ${all.length} video${all.length>1?"s":""} · click to ${open?"collapse":"expand"}</span>
+      </div>
+      <div class="selkpis" style="margin:10px 0 4px">${kpis}</div>
+      ${groupChart(all)}
+      <div class="sub" style="margin:0 0 4px;font-size:11px">${GCAP[GMET]}</div>
+      ${open? `<div class="gbody">${famOrder.map(fk=>famCard(fk,fams[fk])).join("")}</div>` : ""}
+    </div>`;
   }).join("") || '<div class="sub">No videos match these filters.</div>';
+
+  document.querySelectorAll(".ghdr").forEach(el=>el.onclick=()=>{
+    const k = el.dataset.g;
+    if(EXP[k]) delete EXP[k]; else EXP[k]=1;
+    saveExp(); renderCards();
+  });
 }
+
+const grpSel=document.getElementById("grpBy"), metSel=document.getElementById("grpMet");
+grpSel.value=GRP; metSel.value=GMET;
+grpSel.addEventListener("change", ()=>{ GRP=grpSel.value;
+  try{localStorage.setItem("wiq_ref_grp",GRP);}catch(e){} loadExp(); renderCards(); });
+metSel.addEventListener("change", ()=>{ GMET=metSel.value;
+  try{localStorage.setItem("wiq_ref_met",GMET);}catch(e){} renderCards(); });
+document.getElementById("expAll").onclick=()=>{
+  document.querySelectorAll(".ghdr").forEach(el=>EXP[el.dataset.g]=1); saveExp(); renderCards(); };
+document.getElementById("colAll").onclick=()=>{ EXP={}; saveExp(); renderCards(); };
 renderCards();
 </script>
 </body>
