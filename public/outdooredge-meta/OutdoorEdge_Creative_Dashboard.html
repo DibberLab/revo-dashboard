@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outdoor Edge — Meta Ads Creative Dashboard (Nov 2024 – present)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0f1115;--card:#181b22;--card2:#1e222b;--border:#2a2f3a;--text:#e8eaf0;--muted:#9aa3b2;
+--green:#34d399;--yellow:#fbbf24;--red:#f87171;--blue:#60a5fa;--accent:#818cf8;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:24px;}
+h1{font-size:22px;font-weight:700}
+a{color:var(--accent)}
+.sub{color:var(--muted);font-size:13px;margin-top:4px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:20px 0}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+.kpi .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.kpi .val{font-size:24px;font-weight:700;margin-top:6px}
+.kpi .note{font-size:12px;color:var(--muted);margin-top:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+.card h2{font-size:14px;margin-bottom:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.chartbox{position:relative;height:300px}
+.controls{display:flex;gap:10px;align-items:center;margin:12px 0;flex-wrap:wrap}
+input[type=text]{background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px;width:200px}
+select{background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px;font-size:13px;max-width:220px}
+.chk{color:var(--muted);font-size:13px;display:flex;align-items:center;gap:6px}
+.modewrap{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.modewrap button{background:var(--card2);color:var(--muted);border:0;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.modewrap button.on{background:rgba(129,140,248,.2);color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--muted);text-align:right;padding:8px 10px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;font-weight:600}
+th:first-child,td:first-child{text-align:left}
+th.sorted{color:var(--accent)}
+td{padding:8px 10px;border-bottom:1px solid #21252e;text-align:right;white-space:nowrap}
+td.name{text-align:left;max-width:280px;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+td.lft{text-align:left}
+tr:hover td{background:var(--card2)}
+.scrollwrap{overflow:auto;max-height:68vh}
+.scrollwrap thead th{position:sticky;top:0;background:var(--card);z-index:2}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.pill.good{background:rgba(52,211,153,.15);color:var(--green)}
+.pill.ok{background:rgba(251,191,36,.13);color:var(--yellow)}
+.pill.bad{background:rgba(248,113,113,.15);color:var(--red)}
+.pill.na{background:rgba(154,163,178,.12);color:var(--muted)}
+.pill.rev{background:rgba(96,165,250,.15);color:var(--blue)}
+.tag{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:600;margin-right:3px;white-space:nowrap}
+.tag.style{background:rgba(96,165,250,.14);color:var(--blue)}
+.tag.talent{background:rgba(129,140,248,.16);color:var(--accent)}
+.tag.hookc{background:rgba(251,191,36,.12);color:var(--yellow)}
+.tag.aspect{background:rgba(154,163,178,.14);color:var(--muted)}
+.tag.setting{background:rgba(52,211,153,.12);color:var(--green)}
+.footer{color:var(--muted);font-size:12px;margin-top:16px;line-height:1.6}
+.callouts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:1100px){.callouts{grid-template-columns:1fr}}
+.callout{border-radius:12px;padding:14px 16px;border:1px solid var(--border);background:var(--card)}
+.callout h3{font-size:13px;margin-bottom:8px}
+.callout ul{list-style:none}
+.callout li{font-size:13px;padding:4px 0;color:var(--muted)}
+.callout li b{color:var(--text)}
+.g{color:var(--green)}.r{color:var(--red)}.b{color:var(--blue)}
+.famcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
+.famcard h3{font-size:16px;margin-bottom:6px}
+.famcard .desc{color:var(--muted);font-size:13.5px;line-height:1.55;margin:8px 0 12px}
+.famcard .meta{margin-bottom:4px}
+.src{font-size:11px;color:var(--muted);font-style:italic}
+.actorhdr{display:flex;align-items:baseline;gap:12px;margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--border)}
+.actorhdr h2{font-size:18px;color:var(--text);text-transform:none;letter-spacing:0}
+.actorhdr .stats{font-size:13px;color:var(--muted)}
+tr.totrow td{font-weight:700;border-top:2px solid var(--border);background:rgba(129,140,248,.06)}
+.vname{color:var(--text);text-decoration:none;border-bottom:1px dotted var(--muted);cursor:pointer}
+.vname:hover{color:var(--accent)}
+#vtip{position:fixed;z-index:1000;background:var(--card2);border:1px solid var(--border);border-radius:12px;
+padding:12px;width:300px;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none}
+#vtip img{width:100%;border-radius:8px;display:block;background:#000;min-height:120px;object-fit:contain}
+#vtip .t-name{font-size:12.5px;font-weight:600;margin:8px 0 2px;line-height:1.3}
+#vtip .t-meta{font-size:11.5px;color:var(--muted);margin-bottom:8px}
+#vtip .t-btns{display:flex;gap:8px}
+#vtip .t-btns a,#vtip .t-btns button{flex:1;text-align:center;font-size:12px;font-weight:600;padding:6px 8px;border-radius:8px;
+border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;text-decoration:none}
+#vtip .t-btns .play{background:rgba(129,140,248,.18);color:var(--accent);border-color:var(--accent)}
+.selkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:10px 0;
+background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px}
+.selkpis .sk{text-align:center}
+.selkpis .sk .l{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.selkpis .sk .v{font-size:18px;font-weight:700;margin-top:2px}
+.selkpis .cap{grid-column:1/-1;font-size:11.5px;color:var(--accent);text-align:center}
+.refthumb{width:56px;height:38px;object-fit:cover;border-radius:6px;vertical-align:middle;margin-right:8px;background:#000}
+.toplink{font-size:13px}
+.msel{position:relative;display:inline-block}
+.msel>button{background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer;white-space:nowrap}
+.msel>button.active{border-color:var(--accent);color:var(--accent)}
+.msel .panel{position:absolute;top:calc(100% + 4px);left:0;z-index:60;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:8px;min-width:230px;max-height:300px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);display:none}
+.msel.open .panel{display:block}
+.msel .panel label{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--text);padding:4px 6px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.msel .panel label:hover{background:var(--card)}
+.msel .clr{font-size:12px;color:var(--accent);cursor:pointer;padding:4px 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
+#stip{position:fixed;z-index:2000;background:#0b0d11;border:1px solid var(--accent);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);pointer-events:none;display:none;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.6)}
+#stip b{color:var(--accent)}
+.gcard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:14px 0}
+.gcard .famcard{background:var(--card2)}
+.ghdr{display:flex;align-items:baseline;gap:10px;cursor:pointer;user-select:none;flex-wrap:wrap}
+.ghdr h2{font-size:17px}
+.ghdr .tri{color:var(--accent);font-size:13px;width:14px;display:inline-block}
+.ghdr .stats{font-size:12.5px;color:var(--muted)}
+.ghdr:hover h2{color:var(--accent)}
+.gbody{margin-top:10px}
+.gchartwrap{overflow-x:auto}
+.ctlbtn{background:var(--card2);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer}
+.ctlbtn:hover{color:var(--accent);border-color:var(--accent)}
+</style>
+</head>
+<body>
+<h1>Outdoor Edge — Meta Ads Creative Performance</h1>
+<div class="sub">Window: <b>Nov 1, 2024 – Aug 04, 2026</b> &nbsp;·&nbsp; Last refreshed: <b>Aug 04, 2026 02:11 PM</b> &nbsp;·&nbsp;
+<a class="toplink" href="OutdoorEdge_Creative_Strategy.html">📋 Creative Strategy Reference</a> &nbsp;·&nbsp; Ask Claude for a refresh to update the data.</div>
+<div class="sub">Ad account <b>3453197348315496</b> · lifetime <b>$38,289 spend / 1,110 purchases / $96,112 revenue</b> (Nov 1, 2024 – Aug 3, 2026).
+All three windows (All time / Last 90 / Last 10 days) are <b>ad-level</b> and reconcile with Ads Manager.
+Per-video-file analysis isn't possible on this account: ~96% of spend is flexible/carousel/static creative that Meta's video_asset breakdown doesn't attribute.</div>
+<div class="sub" style="margin-top:6px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+<span class="modewrap"><button id="mAll" class="on">All time</button><button id="mL90">Last 90 days</button><button id="mL10">Last 10 days</button></span>
+<span id="modeNote">Ad-level lifetime history (Nov 2024 → today). Reconciles with Ads Manager.</span>
+<label class="chk">Target ROAS
+<input id="tgt" type="number" step="0.1" min="0.5" max="5" style="width:64px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 8px;font-size:13px">
+</label>
+<span class="chk" style="font-size:12px">drives green pills &amp; Scale/Revive verdicts (saved in your browser)</span></div>
+
+<div class="kpis" id="kpis"></div>
+<div class="card" id="coverage" style="font-size:12.5px;color:var(--muted);line-height:1.6"></div>
+
+<div class="callouts">
+  <div class="callout"><h3 class="g">▲ Scale — live ads, L90 ROAS ≥ <span class="tgtL">2.0</span></h3><ul id="winners"></ul></div>
+  <div class="callout"><h3 class="b">↻ Revive candidates — retired creative winners (lifetime ROAS ≥ <span class="tgtRL">2.4</span>, ≥15 purchases)</h3><ul id="revive"></ul></div>
+  <div class="callout"><h3 class="r">▼ Cut? — live ads, L90 ROAS &lt; 0.9</h3><ul id="leaks"></ul></div>
+</div>
+
+<div class="card">
+<h2>Results by strategy</h2>
+<div class="controls">
+  <label class="chk">Group by
+  <select id="dim">
+    <option value="familyLabel" selected>Creative concept (family)</option>
+    <option value="actor">Actor</option>
+    <option value="style">Production style</option>
+    <option value="talent">Talent type</option>
+    <option value="hookCode">Hook angle</option>
+    <option value="aspect">Aspect ratio</option>
+    <option value="setting">Setting</option>
+    <option value="adset">Ad set (recent views only)</option>
+  </select></label>
+  <label class="chk">Chart metric
+  <select id="dimMetric">
+    <option value="roas" selected>ROAS (efficiency)</option>
+    <option value="cpa">CPA (lower = better)</option>
+    <option value="spend">Spend</option>
+    <option value="value">Revenue</option>
+  </select></label>
+  <span class="chk">Sorted by efficiency, not spend — groups under $100 spend hidden (tiny samples mislead) · click a column heading to re-sort · respects the All time / Last 90d toggle</span>
+</div>
+<div class="grid2">
+  <div><div class="chartbox" style="height:360px"><canvas id="dimChart"></canvas></div></div>
+  <div style="overflow-x:auto"><table id="dimTbl">
+    <thead><tr><th data-k="k">Group</th><th data-k="spend">Spend</th><th data-k="roas">ROAS</th><th data-k="cpa">CPA</th><th data-k="purch">Purch</th><th data-k="value">Revenue</th><th data-k="n">Ads</th></tr></thead>
+    <tbody></tbody></table></div>
+</div>
+</div>
+
+<div class="grid2">
+  <div class="card"><h2>Top 12 by spend (color = ROAS)</h2><div class="chartbox"><canvas id="barChart"></canvas></div></div>
+  <div class="card"><h2>Spend vs ROAS — bubble = purchases, dashed = median spend &amp; breakeven</h2><div class="chartbox"><canvas id="scatterChart"></canvas></div></div>
+</div>
+
+<div class="card">
+<h2 id="tblTitle">Rows <span style="text-transform:none;font-weight:400">— ads in every view (All-time view hides ads under $100 lifetime spend) · hover a name to preview the creative</span></h2>
+<div class="selkpis" id="selKpis"></div>
+<div class="controls">
+  <input type="text" id="search" placeholder="Filter by name…">
+  <span id="fFam"></span><span id="fActor"></span><span id="fStyle"></span>
+  <span id="fTalent"></span><span id="fHook"></span><span id="fVerdict"></span><span id="fAdset"></span>
+  <label class="chk"><input type="checkbox" id="onlyPurch"> Has purchases</label>
+</div>
+<div class="scrollwrap">
+<table id="tbl"><thead></thead><tbody></tbody></table>
+</div>
+</div>
+
+<div class="footer">
+One lens, three windows: <b>All time</b>, <b>Last 90 days</b> and <b>Last 10 days</b> are all <b>AD-level</b>, so every view reconciles with Ads Manager (100% spend coverage).
+Per-video-file analysis isn't possible on this account — ~96% of spend is flexible/carousel/static creative that Meta's video_asset breakdown doesn't attribute to individual assets.
+<b>19 ads under $100 lifetime spend are excluded as noise (only $563 combined — vs $37,726 shown); any ad with spend in the last 10 days is always included, so the Last-10-days view is complete.</b>
+Purchases follow the account's attribution setting and continue to update for ~7 days after an impression, so a very recent window will read lower here than Ads Manager does later.
+Verdicts — recent-window rows: <b>Scale</b> ROAS ≥ target · <b>Keep</b> 0.9–target · <b>Cut?</b> &lt; 0.9 · <b>Low signal</b> &lt; 5 purchases.
+All-time rows: <b>Live · strong/ok/weak</b> = still spending in the last 90 days · <b>Revive?</b> = retired with lifetime ROAS ≥ target+0.4 and ≥ 15 purchases · <b>Retired</b> = no recent spend.
+Monthly trend: bars = monthly spend (height) colored by that month's ROAS; ▲/▼ = recent-month ROAS ≥15% above/below the ad's earlier months (fatigue signal), shown only when there's enough purchase volume to mean something.
+Days = distinct days with spend from daily-level pulls (full history, Nov 2024 → today), never the calendar span. All-time rows show lifetime days; recent rows show days inside the selected window, with lifetime days after the slash
+(e.g. "10d / 36" = spent on all 10 days of this window, 36 days since it launched). <b>First spend</b> = the first day that ad ever recorded spend. 6 deleted ads' day counts are approximate (3–8-day resolution).
+Ad set is shown and filterable in the recent views — the same creative often runs in several ad sets, and that's usually what explains different results for the same creative.
+Hook (3s) video-view metrics aren't available for this account's creative mix, so hook rate is not shown.
+Seasonality caveat: Q4 runs (gifting) tend to inflate ROAS vs summer — OE's holiday statics hit 6–10 ROAS — compare like-for-like periods when possible.
+Strategy tags come from a curated taxonomy inferred from ad/campaign names (see <a href="OutdoorEdge_Creative_Strategy.html">Strategy Reference</a>) — every concept is marked "strategy inferred".
+Creative previews: hover a name for the thumbnail; "▶ Play (popup)" appears only when a facebook.com video permalink is available (your FB login applies there). Thumbnails are signed CDN links that expire after a few weeks — refreshes renew them.
+</div>
+<div id="vtip"></div>
+<div id="stip"></div>
+
+<script>
+const DATA = [{"id": "120235689605430408", "name": "Ergo Meat Carver Set Carousel", "spend": 4237.45, "impressions": 675172, "clicks": 7996, "purchases": 95, "value": 9158.03, "roas": 2.16, "cpa": 44.6, "ctr": 1.18, "hook": null, "plays3s": 0, "firstMonth": "2025-12", "lastMonth": "2026-08", "monthsActive": 7, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 2239.66, "purchL90": 46, "roasL90": 1.84, "daysActive": 124, "isAd": false, "family": "em-mcs-carousel", "familyLabel": "Ergo Meat Carver Set \u2014 Carousel", "style": "Carousel", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Product / lifestyle carousel cards", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/14277982601795829713?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLNA5USSx_31VP77EsJ6hUslmIBFlHRUxq-pc0SgsZJ7ceZ9QxqlN-bUa4RCZABePLPqcifrbWQK_2s_uVov3_H1UHax1Rnq_Lb9XOCwEDKnj1hbsIQtYwjoYSW_pSr5_CAXOXgepWyZMiphjeF4l7v&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpkOMjoHJ9wGYbqMwCSNjhczdyIdTVSgH21zNHM3KI8jmq0CnLL016OBNwbY3VFltE&ccb=13-1&oh=06_Q3_BAX8wmUsdIgIWSiQBhXLbsqUxCjF9X68fNpguPZWThVeC&oe=6A73D1EE&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2025-12": [830.24, 25, 2714.56], "2026-03": [620.88, 13, 1381.69], "2026-04": [422.19, 8, 774.46], "2026-05": [862.91, 26, 2554.53], "2026-06": [862.84, 16, 1151.23], "2026-07": [486.45, 4, 353.79], "2026-08": [151.93, 3, 227.77]}}, {"id": "120233894165600408", "name": "EM-1 Carousel", "spend": 3423.21, "impressions": 828934, "clicks": 13922, "purchases": 173, "value": 18788.08, "roas": 5.49, "cpa": 19.79, "ctr": 1.68, "hook": null, "plays3s": 0, "firstMonth": "2025-11", "lastMonth": "2026-01", "monthsActive": 3, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 61, "isAd": false, "family": "em1-carousel", "familyLabel": "EM-1 Carousel", "style": "Carousel", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Product carousel cards", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/8939704585207572490?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQIY7i6YhTenior3-Lmjdq3RU1E8jUiKS-55yKSSLrWV1fH-Pgf9rcTKgMzb1rO62euWYD1CLIQVjIr_jXhIwW2LL4b90DTNo26GfNUrl8K31QyTHqmJd97HkTmy9-9TUpkt8vaO7Jm-cLWtcBUKL0-K&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpWksovcyM8M3LjyZ4VE_86_l9hyQlzLqCGTylpje25Z4z5DxcvKQwj0DI3DmvUDz4&ccb=13-1&oh=06_Q3_BAYVyAcVfBYuo_AQWB3aXvuYXNwkmEmB262DehQWrpqho&oe=6A73BE3F&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2025-11": [1093.97, 57, 6040.38], "2025-12": [2020.9, 102, 11730.72], "2026-01": [308.34, 14, 1016.98]}}, {"id": "120230720733410408", "name": "OE Website - APX", "spend": 2775.26, "impressions": 400989, "clicks": 6041, "purchases": 59, "value": 5354.85, "roas": 1.93, "cpa": 47.04, "ctr": 1.51, "hook": null, "plays3s": 0, "firstMonth": "2025-09", "lastMonth": "2025-10", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 46, "isAd": false, "family": "apx", "familyLabel": "RazorAPX", "style": "Mixed", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Product showcase (site + AMZ)", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/11676787365046402725?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQI2Jxa_heHxzsOik-aCbVSlO9NK01D7HIBzZh_cvreyvEL2F9cO75EKMPf7Hw6jolwfCMfijyFU2yfvm00MBaypRG4pCreWjv4Fhd6FeucBmIujbv59dgTjTyp9ldO5mSXAUZMlRpur1EGvnffCyEFc&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpUy0v-eLFIU4jV7sKF4U7Nw3BzMtVl7hCsBgYw_heCIZMEdydSg_ptTazboxZreyU&ccb=13-1&oh=06_Q3_BAXjOXHrBcda2m-uVJBpjwBKAie308ig2oId0MF4gV2XE&oe=6A73B2E7&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2025-09": [1475.26, 34, 3152.05], "2025-10": [1300.0, 25, 2202.8]}}, {"id": "120212831678590408", "name": "VX1 w/Bit.ly Link (Video) | 2% Lookalike", "spend": 2747.92, "impressions": 284119, "clicks": 6384, "purchases": 85, "value": 7047.65, "roas": 2.56, "cpa": 32.33, "ctr": 2.25, "hook": null, "plays3s": 0, "firstMonth": "2024-12", "lastMonth": "2025-02", "monthsActive": 3, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 66, "isAd": false, "family": "vx-line-video", "familyLabel": "RazorVX Videos (VX1\u2013VX5)", "style": "Video", "talent": "None (voiceover)", "hookCode": "Product-Demo", "setting": "Hunting knife demo footage", "actor": "No actor (voiceover)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t15.5256-10/471748059_2129611150830161_5218046639951668155_n.jpg?_nc_cat=100&ccb=1-7&_nc_ohc=F2jJ-D8Qg6EQ7kNvwGXPnau&_nc_oc=AdqRK3WPu6euwXOb14U9T2v689O45AodrZ_iSsq5daFGCauEkiCKsYEtcpfN1w1wic8&_nc_zt=23&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQHnJcjZgoKycJQEwonTJwEbDwHsWCDGLwsi-DPTAfRZdMffKl0ECEH1881vtdKTiU6TT7cDw3YaKw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=d2b52d&_nc_sid=58080a&oh=00_AQFuIt-PKFbVOi8YsdY2Y-ryOHnUDUowG6ycOgOnK06Osw&oe=6A77C68C", "kind": "video", "len": null, "months": {"2024-12": [1086.42, 39, 3314.83], "2025-01": [1533.84, 42, 3477.4], "2025-02": [127.66, 4, 255.42]}}, {"id": "120212159467170408", "name": "EDC Line Ad #3 (Video) | Interest Targeting", "spend": 1936.33, "impressions": 150186, "clicks": 3779, "purchases": 53, "value": 3982.81, "roas": 2.06, "cpa": 36.53, "ctr": 2.52, "hook": null, "plays3s": 0, "firstMonth": "2024-11", "lastMonth": "2025-02", "monthsActive": 4, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 76, "isAd": false, "family": "edc-video", "familyLabel": "EDC Line \u2014 Video", "style": "Video", "talent": "None (voiceover)", "hookCode": "Product-Demo", "setting": "EDC knife demo footage", "actor": "No actor (voiceover)", "aspect": "Video", "variant": "#3", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.5256-10/472641955_1166102881544678_7671867736303850099_n.jpg?_nc_cat=109&ccb=1-7&_nc_ohc=vqwJOcZClegQ7kNvwFqIyOg&_nc_oc=Adqv6TNXdkk0t2D6M5YNvg5u0F7M4S9Ampv8MrzvVpH9tD54_BcB83nVoVBg4TMXO88&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQFH8HFPiPd7sZ5OevXQdZxyX4cqkSNuwdmVk-K8-9HWb3q9JYU3uaKjdIe6MCR3AQJOGs1geyxsEw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=d2b52d&_nc_sid=58080a&oh=00_AQEmzY3IrqhI4cOWzPlHaeIJVCvPh1cmqLo5rYPcZ6XURA&oe=6A77D60B", "kind": "video", "len": null, "months": {"2024-11": [601.1, 11, 717.5], "2024-12": [773.07, 34, 2702.84], "2025-01": [498.89, 8, 562.47], "2025-02": [63.27, 0, 0]}}, {"id": "120231483612790408", "name": "Meat Carver Set Video", "spend": 1405.13, "impressions": 137265, "clicks": 1798, "purchases": 26, "value": 2192.98, "roas": 1.56, "cpa": 54.04, "ctr": 1.31, "hook": null, "plays3s": 0, "firstMonth": "2025-09", "lastMonth": "2025-10", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 28, "isAd": false, "family": "meat-carver-video", "familyLabel": "Meat Carver Set \u2014 Video/Direct", "style": "Video", "talent": "None (product)", "hookCode": "Product-Demo", "setting": "Product demo footage", "actor": "No actor (product only)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.13418-10/557777387_3439845006153844_9183760701045804201_n.jpg?_nc_cat=110&ccb=1-7&_nc_ohc=VlCeWhbDoLcQ7kNvwFA5SGi&_nc_oc=AdpFw_ItR44D3nCHQW8MN9LhxLluQ-b9u15oxQUuXebdks_ulgFaprS-y16jsZpbt1o&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQFx2DbN2r6tTCkdqUys56Af8tn2yrQv0JqxQkVmpnVN7u1BFCqa22eM33q42fP0aI6Vx_MwiG2Ejg&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=7ca6ff&_nc_sid=58080a&oh=00_AQHwZOqgwTG1NUDQGBX7al3AJsgE_eHNnjYdavi1Crq6pw&oe=6A77B3C2", "kind": "video", "len": null, "months": {"2025-09": [234.65, 4, 126.01], "2025-10": [1170.48, 22, 2066.97]}}, {"id": "120239654068980408", "name": "OE Outlet", "spend": 1386.79, "impressions": 192211, "clicks": 3343, "purchases": 45, "value": 2859.29, "roas": 2.06, "cpa": 30.82, "ctr": 1.74, "hook": null, "plays3s": 0, "firstMonth": "2026-03", "lastMonth": "2026-04", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 50, "isAd": false, "family": "oe-outlet", "familyLabel": "OE Outlet", "style": "Static", "talent": "None (product)", "hookCode": "Discount", "setting": "Outlet / clearance promo", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/648143612_10105368410221532_3629255831680112861_n.png?stp=dst-jpg_tt6&_nc_cat=103&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=Y6pgFi5JlAMQ7kNvwFkRhCy&_nc_oc=Adr_LlueFF-ddaeNY2mkvwOUHS4pNMzNidZUXUBPjXu5Xl-ZybZssLCt-wq9ClRlVaY&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQFK2loaFJMA4VI1b1A3BXR8gRv6z8QTbpgober3M8j6lmBljTlJ-l8-Ax7tzNFqpKgUxbsrGfbc9g&oh=00_AQFPkWlYf6QdvNjNcPRiCLvkzYKmYN9P325EQDrwwIZBlA&oe=6A77C297", "kind": "image", "len": null, "months": {"2026-03": [565.56, 23, 1490.14], "2026-04": [821.23, 22, 1369.15]}}, {"id": "120234018572670408", "name": "New Sales Ad", "spend": 1275.45, "impressions": 183051, "clicks": 3321, "purchases": 55, "value": 4641.81, "roas": 3.64, "cpa": 23.19, "ctr": 1.81, "hook": null, "plays3s": 0, "firstMonth": "2025-11", "lastMonth": "2026-08", "monthsActive": 4, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 351.17, "purchL90": 6, "roasL90": 1.99, "daysActive": 44, "isAd": false, "family": "apx", "familyLabel": "RazorAPX", "style": "Mixed", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Product showcase (site + AMZ)", "actor": "No actor (product only)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.5256-10/577743765_1907140343487080_4671344913215384248_n.jpg?_nc_cat=105&ccb=1-7&_nc_ohc=NKFSG40y3P8Q7kNvwEIPH4M&_nc_oc=Adrm1WrvKWdleO4fRuKIwox1DWVQrjUT7F78JhneqJ4NbhaYVSBaZTF66LLNxvpkgrk&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQGDmxJQy2qEGVZw5c3AcYKtBC-p-nVQ8sZVRidZxkKPZb3vs2yO68MjYyF6ZKIXWUEyHBBH3KMxZg&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=5fad0e&_nc_sid=58080a&oh=00_AQEcoaCFXf5D43oyt8ksfh0UpvJgFlZb9PS8fYy71NgwUg&oe=6A77D441", "kind": "video", "len": null, "months": {"2025-11": [575.55, 30, 2530.38], "2025-12": [348.73, 19, 1411.53], "2026-07": [190.71, 2, 141.73], "2026-08": [160.46, 4, 558.17]}}, {"id": "120228449639380408", "name": "VX4 Vertical", "spend": 1212.96, "impressions": 96338, "clicks": 1982, "purchases": 43, "value": 3604.01, "roas": 2.97, "cpa": 28.21, "ctr": 2.06, "hook": null, "plays3s": 0, "firstMonth": "2025-07", "lastMonth": "2025-09", "monthsActive": 3, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 50, "isAd": false, "family": "vx-line-video", "familyLabel": "RazorVX Videos (VX1\u2013VX5)", "style": "Video", "talent": "None (voiceover)", "hookCode": "Product-Demo", "setting": "Hunting knife demo footage", "actor": "No actor (voiceover)", "aspect": "9:16", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.13418-10/525653636_733446119595109_7355881066242625570_n.jpg?_nc_cat=107&ccb=1-7&_nc_ohc=pVTGc9eeE1IQ7kNvwHLfwex&_nc_oc=AdrQ5rNMfRzxvRKWvtHV3SMYQJUMkH2iZGVicb8OZBc6_jvdNkvF-ER-PgpTyLCCmSc&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQFR7NhvWRg2B2n28awCNagd-TuiumIOxcCLWfII2yVvaAONo6BODAHzYZQJkkWB4ziiCP6RXoyfvg&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=aaa768&_nc_sid=58080a&oh=00_AQFTZX391QBIvVB1hqXH-x0fkvkkr4pKtOxU1sQPv1oP0Q&oe=6A77C1DA", "kind": "video", "len": null, "months": {"2025-07": [66.2, 0, 0], "2025-08": [770.35, 29, 2638.88], "2025-09": [376.41, 14, 965.13]}}, {"id": "120233499477780408", "name": "Meat Carver Set Video", "spend": 1182.1, "impressions": 154336, "clicks": 1334, "purchases": 32, "value": 3625.15, "roas": 3.07, "cpa": 36.94, "ctr": 0.86, "hook": null, "plays3s": 0, "firstMonth": "2025-10", "lastMonth": "2025-11", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 33, "isAd": false, "family": "meat-carver-video", "familyLabel": "Meat Carver Set \u2014 Video/Direct", "style": "Video", "talent": "None (product)", "hookCode": "Product-Demo", "setting": "Product demo footage", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.13418-10/557777387_3439845006153844_9183760701045804201_n.jpg?_nc_cat=110&ccb=1-7&_nc_ohc=VlCeWhbDoLcQ7kNvwFA5SGi&_nc_oc=AdpFw_ItR44D3nCHQW8MN9LhxLluQ-b9u15oxQUuXebdks_ulgFaprS-y16jsZpbt1o&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQGJ9M3Ff5f-thIZhlP6ltIQMYiFf1145eKhh0SV_bVyoGU5p1Wiva9g9dzjK6VFqUIUiSxv9A3E0w&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=6ba63d&_nc_sid=58080a&oh=00_AQE4kiP-fJLOxIQG4caVMZWXMjRwPu51aMXQhqESF-y7Vw&oe=6A77B3C2", "kind": "image", "len": null, "months": {"2025-10": [171.14, 3, 256.97], "2025-11": [1010.96, 29, 3368.18]}}, {"id": "120238623527620408", "name": "Chef's Essentials Pro-Proven in the field, perfected in the kitchen", "spend": 1129.73, "impressions": 112842, "clicks": 1092, "purchases": 21, "value": 2133.53, "roas": 1.89, "cpa": 53.8, "ctr": 0.97, "hook": null, "plays3s": 0, "firstMonth": "2026-02", "lastMonth": "2026-04", "monthsActive": 3, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 31, "isAd": false, "family": "chefs-essentials", "familyLabel": "Chef's Essentials Pro", "style": "Carousel", "talent": "None (product)", "hookCode": "Field-to-Kitchen", "setting": "Field-to-kitchen product story", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/7010111420747891026?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQJCDTvcG8d57HBDm3RrfgBofw_siK_uGIwNEvEPrQrRR3MQOiEiDeOSnvVgeP8IZ5CWEIDzW7WQdXQfU5TswC1rRlPYlny5FA9JebSRzGflH05sOBI7JVUPKDHLMt56kDZsbv1aeWI-0nfjW5TV3-1q&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpnuHf0TmhHBcOdsuPzLRE0gduKcLvn2c3hHKzipUYQySy722w8ewBYowZiFBv87o0&ccb=13-1&oh=06_Q3_BAZCSCu0zt94ySoKq_MH13aXYJHuvMPPho3hnNDoPV15x&oe=6A73D27B&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2026-02": [781.83, 19, 1998.38], "2026-03": [47.92, 0, 0], "2026-04": [299.98, 2, 135.15]}}, {"id": "120216149258380408", "name": "EDC Line Dynamic Creative (10 Assets) | 1% Lookalike", "spend": 1095.01, "impressions": 160647, "clicks": 4343, "purchases": 36, "value": 2585.67, "roas": 2.36, "cpa": 30.42, "ctr": 2.7, "hook": null, "plays3s": 0, "firstMonth": "2025-02", "lastMonth": "2025-03", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 23, "isAd": false, "family": "edc-dynamic", "familyLabel": "EDC Line \u2014 Dynamic Creative", "style": "Dynamic", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "10-asset dynamic mix", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/563829209_25639053279016180_4624168045258265878_n.png?stp=dst-jpg_tt6&_nc_cat=102&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=of-flNmeaYAQ7kNvwFGcpmT&_nc_oc=Adq2yvmSBEWav6cHEFR9IIjSyoA7l5e9PSQEm2VWl9ji49EVVBGcQOLK8wtN1LYgpB4&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQH_ttG_6ML_aPjJdrKWK75n082S-YXjoeGzD5NVshvlLYruBgyNg3iem3YWdtSYeDBk_Wh0B3WJyQ&oh=00_AQEojalnARmb-IP8mFazEF35PEYGwIQIieZynMOmdX9F9Q&oe=6A77C153", "kind": "image", "len": null, "months": {"2025-02": [179.81, 5, 452.59], "2025-03": [915.2, 31, 2133.08]}}, {"id": "120231277511610408", "name": "Meat Carver Set", "spend": 832.81, "impressions": 113889, "clicks": 1687, "purchases": 14, "value": 1522.15, "roas": 1.83, "cpa": 59.49, "ctr": 1.48, "hook": null, "plays3s": 0, "firstMonth": "2025-09", "lastMonth": "2025-10", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 18, "isAd": false, "family": "meat-carver-video", "familyLabel": "Meat Carver Set \u2014 Video/Direct", "style": "Video", "talent": "None (product)", "hookCode": "Product-Demo", "setting": "Product demo footage", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/676784541396836793?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQIPIZMe7rHkXwtA1n63zY0EsVyNjgeILdDpa2D1EBUmnUQgPPx3SZ8dUTqrPec6bdbZTlzM_VJsYW0TvRPphNMipCXLJ5hJOfnc7mc4o59Y9_Bt9eSmtJE38TDIFK66rgjGOPkYuYZyx86eN6NKdH1G&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdrC6cuSDPsOaaDJEeTn4N-U_abwZIJfQftsFdm0B8o_hAPNyVD8Bqk2Lz-G5wDjMgY&ccb=13-1&oh=06_Q3_BAcs1VDKVNEifSt60hAuPcBtYWTP4sOttG15ILP2X0Aap&oe=6A73C1DC&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2025-09": [272.9, 6, 784.96], "2025-10": [559.91, 8, 737.19]}}, {"id": "120217428852260408", "name": "EDC Line Dynamic Creative (10 Assets) | 2% Lookalike", "spend": 822.92, "impressions": 95411, "clicks": 3052, "purchases": 32, "value": 2150.05, "roas": 2.61, "cpa": 25.72, "ctr": 3.2, "hook": null, "plays3s": 0, "firstMonth": "2025-03", "lastMonth": "2026-07", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 203.63, "purchL90": 7, "roasL90": 2.63, "daysActive": 17, "isAd": false, "family": "edc-dynamic", "familyLabel": "EDC Line \u2014 Dynamic Creative", "style": "Dynamic", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "10-asset dynamic mix", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/563829209_25639053279016180_4624168045258265878_n.png?stp=dst-jpg_tt6&_nc_cat=102&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=of-flNmeaYAQ7kNvwHF1zwf&_nc_oc=AdrnLwRLzOTTbzFVXMtK8-HYwqOefdTPIl-6g90zL0BsJDCJmByibjQiAtXnyPGXtzo&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQGAcb7famG5_hrNYkAv78zC5tPYqEEFTMbtRR-SKTW9jCRy1Igv45BmDMYzX8msAcNhg2b9HvfbmA&oh=00_AQHip95oL88uKiTh4ZcGnhOnRwH2suqxyuNHGp10kBxSRg&oe=6A77C153", "kind": "image", "len": null, "months": {"2025-03": [619.29, 24, 1543.0], "2026-07": [203.63, 7, 535.56]}}, {"id": "120244655859050408", "name": "Father's Day Static", "spend": 813.04, "impressions": 77380, "clicks": 956, "purchases": 15, "value": 1243.83, "roas": 1.53, "cpa": 54.2, "ctr": 1.24, "hook": null, "plays3s": 0, "firstMonth": "2026-06", "lastMonth": "2026-06", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 813.04, "purchL90": 15, "roasL90": 1.53, "daysActive": 15, "isAd": false, "family": "fathers-day-2026", "familyLabel": "Father's Day 2026", "style": "Static", "talent": "None (product)", "hookCode": "Gift-Guide", "setting": "Father's Day promo static", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t45.1600-4/717025297_10105624965193312_6179740793126479706_n.png?stp=dst-jpg_tt6&_nc_cat=106&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=WAbSLJjRleYQ7kNvwHNBnvV&_nc_oc=AdrbsfcVIPZpBoxuGeM5IGWrcih65h3Q3rI6T_sk8xCxO3IQGyDML90xuMYEZKub2Os&_nc_zt=1&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQHH2hqNfwWGMSyNtNhiksPu5ykuzuodIXTHSN6CQ1-qADygJlM6v0DvfmmcLEdwfS75nEwhXCtzXw&oh=00_AQFqF67zDB65fgFe7F7gU_gc4MR7xgNVcchiWZE4I2kM8g&oe=6A77AC0E", "kind": "image", "len": null, "months": {"2026-06": [813.04, 15, 1243.83]}}, {"id": "120213655821910408", "name": "VX5 w/Bit.ly Link (Video) | 1% Lookalike - Advantage+ shopping campaign", "spend": 626.33, "impressions": 52134, "clicks": 721, "purchases": 15, "value": 1088.91, "roas": 1.74, "cpa": 41.76, "ctr": 1.38, "hook": null, "plays3s": 0, "firstMonth": "2025-01", "lastMonth": "2025-02", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 26, "isAd": false, "family": "vx-line-video", "familyLabel": "RazorVX Videos (VX1\u2013VX5)", "style": "Video", "talent": "None (voiceover)", "hookCode": "Product-Demo", "setting": "Hunting knife demo footage", "actor": "No actor (voiceover)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.5256-10/472455694_515241150925634_7255416967589444394_n.jpg?_nc_cat=111&ccb=1-7&_nc_ohc=Q9fn-8LgCIYQ7kNvwFYuFIH&_nc_oc=Adqtcphxjpj-L7OokmLWcaUhPynJzQR6tD2eR4IsiPwwWeFp3d7zq_ANM0LVEAfNPHk&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQFPhtuVlTFORMDfCKFGfYJdyeXoCRKagCGxKVYuzJG-1OFUdJ8SyiwlgqHd8UfvkgKeUVd4Tw0oRQ&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=d2b52d&_nc_sid=58080a&oh=00_AQF-GgBk0lETkboG7LrGXA0EKM6cHwCWkocGA8Ed5Tat0A&oe=6A77D899", "kind": "video", "len": null, "months": {"2025-01": [561.27, 13, 923.03], "2025-02": [65.06, 2, 165.88]}}, {"id": "120213656030940408", "name": "VX4 w/Bit.ly Link (Video) | 2% Lookalike", "spend": 623.77, "impressions": 45743, "clicks": 672, "purchases": 9, "value": 602.82, "roas": 0.97, "cpa": 69.31, "ctr": 1.47, "hook": null, "plays3s": 0, "firstMonth": "2025-01", "lastMonth": "2025-02", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 26, "isAd": false, "family": "vx-line-video", "familyLabel": "RazorVX Videos (VX1\u2013VX5)", "style": "Video", "talent": "None (voiceover)", "hookCode": "Product-Demo", "setting": "Hunting knife demo footage", "actor": "No actor (voiceover)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t15.5256-10/473352811_839279351585116_1531939957794796373_n.jpg?_nc_cat=106&ccb=1-7&_nc_ohc=ko0coZsFm9YQ7kNvwHA21EV&_nc_oc=Adr2iD7mduCSfTMjPOdcU3dNSF8fRyICwdH0mcrxeLI3M-Cl-jlYggGL2LHycCTdrgE&_nc_zt=23&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQGTPOyPTIoIYaLAGhGDS7CTuB4Hf-lS580c7H-Yf4PtMQcyGAQpZ1f7RogbAuFJiRuS4sV2nXy7NQ&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=d2b52d&_nc_sid=58080a&oh=00_AQEoL5cCfFv3h5zBvD9a-_VDdUpmpiZW6fMJ8CT3A4lSzQ&oe=6A77CE8C", "kind": "video", "len": null, "months": {"2025-01": [563.12, 8, 573.87], "2025-02": [60.65, 1, 28.95]}}, {"id": "120214705980920408", "name": "Testimonial Carousel EDC Line", "spend": 554.78, "impressions": 50783, "clicks": 436, "purchases": 14, "value": 886.54, "roas": 1.6, "cpa": 39.63, "ctr": 0.86, "hook": null, "plays3s": 0, "firstMonth": "2025-02", "lastMonth": "2025-02", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 21, "isAd": false, "family": "edc-testimonial", "familyLabel": "EDC Line \u2014 Testimonial Carousel", "style": "Carousel", "talent": "Customer quotes", "hookCode": "Social-Proof", "setting": "Review/testimonial cards", "actor": "No actor (testimonial text)", "aspect": "Carousel", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/4748497582995871342?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQJkNFps7T7RP2cFR91wC1hLHrVPvgmOb5k06mWCmCY2kuRtSEQdjsj48oatYLwqiQYFJh-FI85EmkCK7Rxjvr33evTIZkfmTfYF1-ZCEhAA8ns2G6REy21F_KEH-YMybcVle-YaCfnraOR5_20D3ayz&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_oc=Adrday6OE_iO5VzIP9oXK4UQ-UQvxpLN8kq3NCdcyS6h_2oDapboJ1nfNIwajWB45Jg&ccb=13-1&oh=06_Q3_BAVleTeZdS8m6qi0RF-wHQGCwTDDTorHbygC59Cp10eWc&oe=6A73DED0&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2025-02": [554.78, 14, 886.54]}}, {"id": "120217694065980408", "name": "Spring Sale x 20% OFF VX Line | 2% Lookalike", "spend": 499.66, "impressions": 37596, "clicks": 496, "purchases": 9, "value": 495.81, "roas": 0.99, "cpa": 55.52, "ctr": 1.32, "hook": null, "plays3s": 0, "firstMonth": "2025-03", "lastMonth": "2025-03", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 7, "isAd": false, "family": "spring-sale-2025", "familyLabel": "Spring Sale \u2014 20% Off VX (2025)", "style": "Static", "talent": "None (product)", "hookCode": "Discount", "setting": "Spring sale promo", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.5256-10/486384554_527033483422734_1486587096993479267_n.jpg?_nc_cat=111&ccb=1-7&_nc_ohc=YxY9GNu6o1YQ7kNvwFm6efb&_nc_oc=AdrTNhLeWaRxZlJ0F5nEuu1Xrs4GhnwU7FdfMDNhyLjAq1V0SDI4hwzp451G_QQ_Zcc&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQFP_-X4xpHc4Mlgw0nNugjggBnCfbDjO-IxQWkIKxYg5qHzX00VQec39mBS9HC1Z6WlO8rWpbIeaA&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=b696e2&_nc_sid=58080a&oh=00_AQE6cXSePlrW-e1Tmu5KPKZpSrARpCQBNPNG2MOLednr5w&oe=6A77D426", "kind": "image", "len": null, "months": {"2025-03": [499.66, 9, 495.81]}}, {"id": "120246179850760408", "name": "OE | Retargeting | Video 4x5 | Site Visitors - No Purchase | v1", "spend": 495.19, "impressions": 24679, "clicks": 547, "purchases": 3, "value": 198.54, "roas": 0.4, "cpa": 165.06, "ctr": 2.22, "hook": null, "plays3s": 0, "firstMonth": "2026-06", "lastMonth": "2026-07", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 495.19, "purchL90": 3, "roasL90": 0.4, "daysActive": 25, "isAd": false, "family": "retargeting-2026", "familyLabel": "Retargeting \u2014 Site Visitors (2026)", "style": "Video", "talent": "None (product)", "hookCode": "Reminder", "setting": "4x5 retargeting video", "actor": "No actor (product only)", "aspect": "4:5", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t15.5256-10/731632159_2151156608760157_3290148551665541606_n.jpg?_nc_cat=106&ccb=1-7&_nc_ohc=G0bEZHMakrcQ7kNvwF2avsB&_nc_oc=Adpeq8qIoXwSyvuaNUCi5w90bwDVuFm3YbIFjfwkwRO3W0u4qM69w0QZz4gzGGvuIrQ&_nc_zt=23&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQF0QYyRn-azYXMkMUrGfhOAw5uxtZ2plrBJF0tc_w7awb_3JmmXwI6IrhPzG6pkaQIwaViXeeM8Nw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=5fad0e&_nc_sid=58080a&oh=00_AQHaY4QzC7qKAGIwI5Y1p-AVN9OTZvAnX01pBPoSUVqbog&oe=6A77D0CF", "kind": "video", "len": null, "months": {"2026-06": [164.4, 2, 141.32], "2026-07": [330.79, 1, 57.22]}}, {"id": "120212640017620408", "name": "Black Friday Graphic (Ends 12/2/24)  | Advantage+ shopping", "spend": 456.25, "impressions": 24561, "clicks": 241, "purchases": 9, "value": 708.78, "roas": 1.55, "cpa": 50.69, "ctr": 0.98, "hook": null, "plays3s": 0, "firstMonth": "2024-11", "lastMonth": "2024-12", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 7, "isAd": false, "family": "black-friday-2024", "familyLabel": "Black Friday 2024", "style": "Mixed", "talent": "None (product)", "hookCode": "Discount", "setting": "BF promo graphic + VX1 video", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/565649199_25886953914325455_965138542792495105_n.png?_nc_cat=107&ccb=1-7&_nc_ohc=q0qr-bOZoz8Q7kNvwF1uIMD&_nc_oc=AdoRgKNLndfBwEH-AysOGEmLGTGXnB0HKcCoQMOUJmFgYkU4AmuuMfV-iH072MCx7a8&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQFdT6hL8m05THpT9FxGqXGhzcUhV8P3pC-69CxehMIcj5qNhnsy-BEAjNPe1fZdR_gXKuLNDu77vA&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=52f3c4&_nc_sid=58080a&oh=00_AQEh2HgyP49_55roWB9kYwxiwVqODQX1h5CkTZPk3qs7vQ&oe=6A77BDDD", "kind": "image", "len": null, "months": {"2024-11": [307.96, 7, 379.03], "2024-12": [148.29, 2, 329.75]}}, {"id": "120212296316210408", "name": "EDC Line Ad #6 (Lifestyle)", "spend": 455.56, "impressions": 30949, "clicks": 769, "purchases": 5, "value": 220.26, "roas": 0.48, "cpa": 91.11, "ctr": 2.48, "hook": null, "plays3s": 0, "firstMonth": "2024-11", "lastMonth": "2024-11", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 19, "isAd": false, "family": "edc-static", "familyLabel": "EDC Line \u2014 Lifestyle Statics", "style": "Static", "talent": "None (product)", "hookCode": "Lifestyle", "setting": "Lifestyle stills", "actor": "No actor (product only)", "aspect": "Static", "variant": "#6", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t45.1600-4/565461266_24621474540855713_8607455278112502145_n.png?_nc_cat=106&ccb=1-7&_nc_ohc=BRljCPnyjIEQ7kNvwHnHCHP&_nc_oc=AdrTW7OW38GnqPx0HvA2mUdhJlZUfhxV1zdZQYBMZvt06WERBggXqEJXI7FkV4M9Hp8&_nc_zt=1&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQGZkCHrPpsKLZBLV7U9nnzNDvnOBltgOt-7Tm6shhqWkN1q7RMEx3uUlTcdUEOaWimrhY5AY9I-eQ&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=52f3c4&_nc_sid=58080a&oh=00_AQFLawe6fKSALvw66tU1mhStj866mzDS9Q3BaTNtLV7cqA&oe=6A77D7C8", "kind": "image", "len": null, "months": {"2024-11": [455.56, 5, 220.26]}}, {"id": "120212639869030408", "name": "Black Friday VX1 Video (Ends 12/2/24) | Advantage+ shopping campaign", "spend": 454.94, "impressions": 32131, "clicks": 567, "purchases": 10, "value": 671.95, "roas": 1.48, "cpa": 45.49, "ctr": 1.76, "hook": null, "plays3s": 0, "firstMonth": "2024-11", "lastMonth": "2024-12", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 7, "isAd": false, "family": "black-friday-2024", "familyLabel": "Black Friday 2024", "style": "Mixed", "talent": "None (product)", "hookCode": "Discount", "setting": "BF promo graphic + VX1 video", "actor": "No actor (product only)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.13418-10/468382934_1264621834787797_2196640938088343316_n.jpg?_nc_cat=109&ccb=1-7&_nc_ohc=r4pYgiCwNi4Q7kNvwGm9uLR&_nc_oc=AdqYAV02kIaZa0A69J_dihmJKeeJo4MUxWy8OkjnbxURlZc8GBQ71ccsCV_7iZP8Eg4&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQErScIWY2OOWNMk0Mebh0UfqvxZQDhpV3cqCI8C7WTDpnTEW_tnbrdelWi-Sp5_38egI9FTZFs_Eg&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=aaa768&_nc_sid=58080a&oh=00_AQEw_GhJfWKmT-KVFci9E9AFLVu8Xhs6lURL9-1ecsWeLw&oe=6A77D2AC", "kind": "video", "len": null, "months": {"2024-11": [309.37, 10, 671.95], "2024-12": [145.57, 0, 0]}}, {"id": "120246185628330408", "name": "Ergo Catalog", "spend": 449.03, "impressions": 47114, "clicks": 949, "purchases": 4, "value": 364.16, "roas": 0.81, "cpa": 112.26, "ctr": 2.01, "hook": null, "plays3s": 0, "firstMonth": "2026-06", "lastMonth": "2026-07", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 449.03, "purchL90": 4, "roasL90": 0.81, "daysActive": 11, "isAd": false, "family": "ergo-catalog", "familyLabel": "Ergo Catalog / Static (2026 tests)", "style": "Static", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Catalog & static product imagery", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t39.2147-6/75341531_494485104475166_2751028116179648512_n.png?_nc_cat=1&ccb=1-7&_nc_ohc=fZYfvyN2D2wQ7kNvwELt7Zq&_nc_oc=Adr8f_6KJ26S12zdOmrT8zhfV-1Iqx4VaG97YLvejOddwcQmwpSrlCwZfooXS5g7u-k&_nc_zt=14&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQEzP30FnKcZwimFy20u0wj-15axxbEyib7k-ypnNz_DGXyo2QaJHbS24F7lprd6yz7W4VKafCsMJw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=39b8c1&_nc_sid=58080a&oh=00_AQGchtKidH4Zy2Iv0qXy2GFsRySt2SEfH6w0_kMCOsmadg&oe=6A77A984", "kind": "image", "len": null, "months": {"2026-06": [226.98, 2, 128.6], "2026-07": [222.05, 2, 235.56]}}, {"id": "120246610315990408", "name": "Ergo Meat Carver Set Carousel [A/B Test]", "spend": 432.67, "impressions": 26903, "clicks": 551, "purchases": 1, "value": 153.14, "roas": 0.35, "cpa": 432.67, "ctr": 2.05, "hook": null, "plays3s": 0, "firstMonth": "2026-07", "lastMonth": "2026-07", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 432.67, "purchL90": 1, "roasL90": 0.35, "daysActive": 17, "isAd": false, "family": "em-mcs-carousel", "familyLabel": "Ergo Meat Carver Set \u2014 Carousel", "style": "Carousel", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Product / lifestyle carousel cards", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "A/B test", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/14277982601795829713?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLNA5USSx_31VP77EsJ6hUslmIBFlHRUxq-pc0SgsZJ7ceZ9QxqlN-bUa4RCZABePLPqcifrbWQK_2s_uVov3_H1UHax1Rnq_Lb9XOCwEDKnj1hbsIQtYwjoYSW_pSr5_CAXOXgepWyZMiphjeF4l7v&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpkOMjoHJ9wGYbqMwCSNjhczdyIdTVSgH21zNHM3KI8jmq0CnLL016OBNwbY3VFltE&ccb=13-1&oh=06_Q3_BAX8wmUsdIgIWSiQBhXLbsqUxCjF9X68fNpguPZWThVeC&oe=6A73D1EE&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2026-07": [432.67, 1, 153.14]}}, {"id": "120214975555770408", "name": "EDC Line w/Bit.ly Link (GIF) | 2% Lookalike - Copy", "spend": 430.4, "impressions": 77243, "clicks": 2774, "purchases": 8, "value": 563.15, "roas": 1.31, "cpa": 53.8, "ctr": 3.59, "hook": null, "plays3s": 0, "firstMonth": "2025-02", "lastMonth": "2025-02", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 15, "isAd": false, "family": "edc-dynamic", "familyLabel": "EDC Line \u2014 Dynamic Creative", "style": "Dynamic", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "10-asset dynamic mix", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.13418-10/479013062_2840794336082036_7343900959449694182_n.jpg?_nc_cat=103&ccb=1-7&_nc_ohc=3a-G_pm9d7UQ7kNvwFIJgKK&_nc_oc=Adr47p9mFKG1RJnWKAu0T62vaOX9UnB7SgXK3k0kxKaRoGWowhJuhYiTSx1x0BkOwmc&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQFobDi4e-3yRbsENbiKfolF-_jCAO_mWsZvIMCmfIK_11OPB3AFr8M4DSAqMml7E3SVLZSfAdu3-Q&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=c3b633&_nc_sid=58080a&oh=00_AQE5gDvjCNNie5veDrn8e_3u9xZU7gNmPOyxwI7sjFK4Lw&oe=6A77AFF1", "kind": "image", "len": null, "months": {"2025-02": [430.4, 8, 563.15]}}, {"id": "120237348292820408", "name": "EM-1 End of Season", "spend": 427.04, "impressions": 98288, "clicks": 1165, "purchases": 11, "value": 802.67, "roas": 1.88, "cpa": 38.82, "ctr": 1.19, "hook": null, "plays3s": 0, "firstMonth": "2026-01", "lastMonth": "2026-01", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 20, "isAd": false, "family": "em1-carousel", "familyLabel": "EM-1 Carousel", "style": "Carousel", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Product carousel cards", "actor": "No actor (product only)", "aspect": "\u2014", "variant": "", "source": "inferred", "permalink": null, "thumb": null, "kind": null, "len": null, "months": {"2026-01": [427.04, 11, 802.67]}}, {"id": "120235034076160408", "name": "Gift Carousel - Black Friday", "spend": 398.74, "impressions": 93137, "clicks": 1912, "purchases": 45, "value": 4093.35, "roas": 10.27, "cpa": 8.86, "ctr": 2.05, "hook": null, "plays3s": 0, "firstMonth": "2025-11", "lastMonth": "2025-12", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 4, "isAd": false, "family": "ergo-gift-carousel", "familyLabel": "Holiday Gift Carousels (Ergo)", "style": "Carousel", "talent": "None (product)", "hookCode": "Gift-Guide", "setting": "Holiday gift-guide carousel", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/17979247407020609635?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQKn6KZTNcI1X730o6GvlyDGcY-mgtlIWPX5XlCS_D851jIj7Ik1K9BuTuhNXm_2Sx98jNv7DVNUHbJR6JYhXGBYxK8cyrZjPcf2QhJoZAhLZmnmtQunj0xKffw7IeSfAYp03As72lshH_Qye95X_ccX&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_oc=AdolM31E5wGQG491VWoxLeiRD21YIM6rtSFDgczsDfBsywx0W0dWFVTWFVyZTW7yKfQ&ccb=13-1&oh=06_Q3_BARoZbBVRHN-wGt1h2WPYEQAvb10A7c75oLF5wXJmN6Ce&oe=6A73DA72&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2025-11": [300.66, 34, 3036.39], "2025-12": [98.08, 11, 1056.96]}}, {"id": "120235035554200408", "name": "Ergo Gift Carousel", "spend": 398.29, "impressions": 36707, "clicks": 505, "purchases": 38, "value": 2715.83, "roas": 6.82, "cpa": 10.48, "ctr": 1.38, "hook": null, "plays3s": 0, "firstMonth": "2025-11", "lastMonth": "2025-12", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 4, "isAd": false, "family": "ergo-gift-carousel", "familyLabel": "Holiday Gift Carousels (Ergo)", "style": "Carousel", "talent": "None (product)", "hookCode": "Gift-Guide", "setting": "Holiday gift-guide carousel", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/4163912798629090686?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQI7Oa45p6vjOTr0jw4Z4ckvV5Y-3U_HISKJVGkuQOnMzFyqPgh1A4QmiQ5eoDs5aY09N5AJvbQ93yE0OHr6-f3YvB1SiIw_1tr5P2gqrtF8tg4amwIsagUciakXE9inyepwyrJTuvaZr_dRISjRQSG0&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_oc=AdqLJuXH-xL4u9_dOVzRplyg4Lpy7agBeGbplqlT_xPEJeW8-1gCPPUDOAeK1cDyIxM&ccb=13-1&oh=06_Q3_BATeiy2MFXXQFm7s8O2BLxoUlXLZxAVMZBnQ5we1_666E&oe=6A73DEEC&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2025-11": [298.84, 26, 1859.2], "2025-12": [99.45, 12, 856.63]}}, {"id": "120235997110610408", "name": "Static 12 Days of Christmas", "spend": 374.24, "impressions": 45298, "clicks": 1517, "purchases": 27, "value": 2603.7, "roas": 6.96, "cpa": 13.86, "ctr": 3.35, "hook": null, "plays3s": 0, "firstMonth": "2025-12", "lastMonth": "2025-12", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 9, "isAd": false, "family": "black-friday-2025", "familyLabel": "Black Friday / Holiday Statics 2025", "style": "Static", "talent": "None (product)", "hookCode": "Discount", "setting": "Holiday promo statics", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t45.1600-4/597810796_10105119246068492_6302216186954400485_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=BMZZVmmOJkAQ7kNvwGahanr&_nc_oc=AdqrgcHlb2o6_Nep-xVrHFPxt3RqDJtmOoc2nvBh2Ppe6cWdfjGdCBbzjKR0RsuLhg8&_nc_zt=1&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQE2VgwDgegWMF2g1n-uBwp4OwI5pNLvzvYaE4GTFNSZ54Rxi-MDb6S9FqTgQtkWwUnJNWN5ymfJ-Q&oh=00_AQGWZ694orFVYfUisv2yb9WobtMFxoYLFLCsGw7O9vMkVw&oe=6A77C05B", "kind": "image", "len": null, "months": {"2025-12": [374.24, 27, 2603.7]}}, {"id": "120212484887730408", "name": "EDC VX2 (Video) | Advantage+ shopping campaign", "spend": 351.34, "impressions": 18421, "clicks": 292, "purchases": 13, "value": 979.42, "roas": 2.79, "cpa": 27.03, "ctr": 1.59, "hook": null, "plays3s": 0, "firstMonth": "2024-11", "lastMonth": "2024-12", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 15, "isAd": false, "family": "vx-line-video", "familyLabel": "RazorVX Videos (VX1\u2013VX5)", "style": "Video", "talent": "None (voiceover)", "hookCode": "Product-Demo", "setting": "Hunting knife demo footage", "actor": "No actor (voiceover)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t15.13418-10/467734979_1112361393576121_8143993211996936665_n.jpg?_nc_cat=106&ccb=1-7&_nc_ohc=W4nXMS35w8IQ7kNvwEolTV-&_nc_oc=AdqFfuSEK2kXCB2V1G3gQXj1hB_RprxRO36k3tuw3eMu4Xf0EFeJmKtF_mrQ7up5mms&_nc_zt=23&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQHK_ybcH9GYC5iXoRJlUXqBXI6DmlDpouV8SXPCskaRlusPr6guMlN00sHjMMGSo6hJXiE3i3K1Xg&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=aaa768&_nc_sid=58080a&oh=00_AQHPrFj7-OVKcmvFFPY7hGAYBGNZXhsAlA9z5yEkVzlxlQ&oe=6A77A341", "kind": "video", "len": null, "months": {"2024-11": [255.95, 10, 842.34], "2024-12": [95.39, 3, 137.08]}}, {"id": "120227453081550408", "name": "ReelFlex1", "spend": 351.0, "impressions": 22280, "clicks": 236, "purchases": 2, "value": 96.51, "roas": 0.27, "cpa": 175.5, "ctr": 1.06, "hook": null, "plays3s": 0, "firstMonth": "2025-07", "lastMonth": "2025-07", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 15, "isAd": false, "family": "reelflex", "familyLabel": "ReelFlex Halibut", "style": "Video", "talent": "None (product)", "hookCode": "Product-Demo", "setting": "Fillet knife on-the-water demo", "actor": "No actor (product only)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.13418-10/520748485_2913929238794688_3361855693473331223_n.jpg?_nc_cat=109&ccb=1-7&_nc_ohc=qpOhoC_watQQ7kNvwG88Nyw&_nc_oc=Adox6WUBOzlMTMUYUoMhaL1WZaVmQr_PrIqStA2HFuzO_FU6ATn21E_4Wvj2crINnKg&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQH5to5bD_zBEwZjQYAaNkaYrr-msu5xGE8y0wvHrxYewFfVjH9eJgMhQrGzAfrwgZPrgfhowsaaxA&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=aaa768&_nc_sid=58080a&oh=00_AQHDEe04lAYEId1WDxHSQ4bfoUyleos0hH6lwUFgd5QBNg&oe=6A77D8B8", "kind": "video", "len": null, "months": {"2025-07": [351.0, 2, 96.51]}}, {"id": "120212484254130408", "name": "EDC Lifestyle #2", "spend": 350.88, "impressions": 27040, "clicks": 898, "purchases": 7, "value": 426.0, "roas": 1.21, "cpa": 50.13, "ctr": 3.32, "hook": null, "plays3s": 0, "firstMonth": "2024-11", "lastMonth": "2024-12", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 15, "isAd": false, "family": "edc-static", "familyLabel": "EDC Line \u2014 Lifestyle Statics", "style": "Static", "talent": "None (product)", "hookCode": "Lifestyle", "setting": "Lifestyle stills", "actor": "No actor (product only)", "aspect": "Static", "variant": "#2", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t45.1600-4/567761942_24986085297709659_5374705954827404314_n.png?_nc_cat=106&ccb=1-7&_nc_ohc=O5oqc4hok_QQ7kNvwFSQL-1&_nc_oc=AdpH_ASZ5gLP93j29zyhh2Eb7V4FFPAxALn7Zsn2D8thHo4KS6qdP35IfVglDecvQGs&_nc_zt=1&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQGr67jm-QtwxX9tOjKC8X90Za33DGBEOBftebEWw23rrqq3PNudU1vEi_RtAekA92vVeH_14El7ug&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=52f3c4&_nc_sid=58080a&oh=00_AQHZBbizpRSkKJEy0tjgvmeoWIOfdT1XR0i4gzI_Y8xPnA&oe=6A77CB9C", "kind": "image", "len": null, "months": {"2024-11": [257.28, 5, 347.0], "2024-12": [93.6, 2, 79.0]}}, {"id": "120212484980580408", "name": "EDC VX5 (Video) | Advantage+ shopping campaign Campaign", "spend": 350.22, "impressions": 24896, "clicks": 528, "purchases": 6, "value": 320.16, "roas": 0.91, "cpa": 58.37, "ctr": 2.12, "hook": null, "plays3s": 0, "firstMonth": "2024-11", "lastMonth": "2024-12", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 15, "isAd": false, "family": "vx-line-video", "familyLabel": "RazorVX Videos (VX1\u2013VX5)", "style": "Video", "talent": "None (voiceover)", "hookCode": "Product-Demo", "setting": "Hunting knife demo footage", "actor": "No actor (voiceover)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t15.13418-10/466930239_596326152857311_4293145871196902507_n.jpg?_nc_cat=101&ccb=1-7&_nc_ohc=DnuRjyVVO6MQ7kNvwE88BSs&_nc_oc=Adp2EPADP9aUtRiuh8ewBDMxjMCSkjkyVEuzmYcx6bdz4auc4CpyK1TCrRYB_HRGImk&_nc_zt=23&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQFVQMGvKorKo-HwXwu4kva58Z6_6VF-P2eHpnPyI_fGMJBaDt8ot1sgqXQ4YkvA4jWVhME6IAGRLA&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=aaa768&_nc_sid=58080a&oh=00_AQFabEx6U9RBnCO9v7Wn6D78EOEE9HNe0lPLEjAMciHgmw&oe=6A77C38F", "kind": "video", "len": null, "months": {"2024-11": [255.66, 5, 289.4], "2024-12": [94.56, 1, 30.76]}}, {"id": "120227455842800408", "name": "ReelFlex1_AMZ", "spend": 349.82, "impressions": 29428, "clicks": 226, "purchases": 1, "value": 82.26, "roas": 0.24, "cpa": 349.82, "ctr": 0.77, "hook": null, "plays3s": 0, "firstMonth": "2025-07", "lastMonth": "2025-07", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 15, "isAd": false, "family": "reelflex", "familyLabel": "ReelFlex Halibut", "style": "Video", "talent": "None (product)", "hookCode": "Product-Demo", "setting": "Fillet knife on-the-water demo", "actor": "No actor (product only)", "aspect": "Video", "variant": "AMZ", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.13418-10/520748485_2913929238794688_3361855693473331223_n.jpg?_nc_cat=109&ccb=1-7&_nc_ohc=qpOhoC_watQQ7kNvwG88Nyw&_nc_oc=Adox6WUBOzlMTMUYUoMhaL1WZaVmQr_PrIqStA2HFuzO_FU6ATn21E_4Wvj2crINnKg&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQG9Xm71_Q5j0Jq1XK-shdJKbdS76V9yufwCuLXHfORQvvFCo47R-sIySQJ-ZWBlMgPpg8Wlc95alA&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=aaa768&_nc_sid=58080a&oh=00_AQGhtRY9DW3nZsEL6gSdPS-aIK2yS-uB-NCLE8A4jwD7iw&oe=6A77D8B8", "kind": "video", "len": null, "months": {"2025-07": [349.82, 1, 82.26]}}, {"id": "120246609768170408", "name": "Ergo Catalog [A/B Test - Static]", "spend": 341.05, "impressions": 37728, "clicks": 642, "purchases": 5, "value": 461.8, "roas": 1.35, "cpa": 68.21, "ctr": 1.7, "hook": null, "plays3s": 0, "firstMonth": "2026-07", "lastMonth": "2026-07", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 341.05, "purchL90": 5, "roasL90": 1.35, "daysActive": 15, "isAd": false, "family": "ergo-catalog", "familyLabel": "Ergo Catalog / Static (2026 tests)", "style": "Static", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Catalog & static product imagery", "actor": "No actor (product only)", "aspect": "Static", "variant": "A/B test", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t39.2147-6/75341531_494485104475166_2751028116179648512_n.png?_nc_cat=1&ccb=1-7&_nc_ohc=fZYfvyN2D2wQ7kNvwELt7Zq&_nc_oc=Adr8f_6KJ26S12zdOmrT8zhfV-1Iqx4VaG97YLvejOddwcQmwpSrlCwZfooXS5g7u-k&_nc_zt=14&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQEzP30FnKcZwimFy20u0wj-15axxbEyib7k-ypnNz_DGXyo2QaJHbS24F7lprd6yz7W4VKafCsMJw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=39b8c1&_nc_sid=58080a&oh=00_AQGchtKidH4Zy2Iv0qXy2GFsRySt2SEfH6w0_kMCOsmadg&oe=6A77A984", "kind": "image", "len": null, "months": {"2026-07": [341.05, 5, 461.8]}}, {"id": "120235034882010408", "name": "Static Black Friday (V2)", "spend": 322.23, "impressions": 27776, "clicks": 850, "purchases": 28, "value": 2205.38, "roas": 6.84, "cpa": 11.51, "ctr": 3.06, "hook": null, "plays3s": 0, "firstMonth": "2025-11", "lastMonth": "2025-12", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 4, "isAd": false, "family": "black-friday-2025", "familyLabel": "Black Friday / Holiday Statics 2025", "style": "Static", "talent": "None (product)", "hookCode": "Discount", "setting": "Holiday promo statics", "actor": "No actor (product only)", "aspect": "Static", "variant": "V2", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t45.1600-4/589898599_10232365670579499_350795027054853079_n.jpg?_nc_cat=100&ccb=1-7&_nc_ohc=iDrULbLpEwoQ7kNvwF3sQ3l&_nc_oc=AdrDFdR9a-MtxdzwIi_zypgHcgWKyiStElAvr1YJT7vmIksjeSahp994rXW5AoWeau0&_nc_zt=1&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQGTYVNTzeoWs5mbwmPrxaOwRXFeulyfceN0Xg80IHsLLUxnfG3Nwt8XWbaFpOezAB5Xsk2snXAsiA&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=52f3c4&_nc_sid=58080a&oh=00_AQEGuLk2Fp_5-gN2P9t43Sp4KUdxs0AN7oFPGPb2oiZ2mA&oe=6A77D40D", "kind": "image", "len": null, "months": {"2025-11": [231.96, 15, 916.04], "2025-12": [90.27, 13, 1289.34]}}, {"id": "120239540148720408", "name": "Spring Thunder Turkey Giveaway", "spend": 249.48, "impressions": 76429, "clicks": 3970, "purchases": 2, "value": 138.32, "roas": 0.55, "cpa": 124.74, "ctr": 5.19, "hook": null, "plays3s": 0, "firstMonth": "2026-03", "lastMonth": "2026-03", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 17, "isAd": false, "family": "giveaways", "familyLabel": "Giveaways (Link-Click)", "style": "Static", "talent": "None (product)", "hookCode": "Giveaway", "setting": "Giveaway promo graphics", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/645949039_10105358956671522_3936408354635383138_n.png?stp=dst-jpg_tt6&_nc_cat=111&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=G4ao4TKEN-0Q7kNvwGYpIo3&_nc_oc=AdpcYUictK2V4D95VNLadixkmquoacnExFoq9W1ymElJiI4g9aTJsb8GO8kI8Qnpl1c&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQH3FNGuSMySt6up6G0f4dp0F2qpkLWesQVl5G-DTWFWnDndfWkrQHINDwCpm4h2FCo0wgsB3y_QUw&oh=00_AQEvnRyP3iOw7YwNeLt7yXJZXlfiRoPNgSFbE7xJ5OLoBQ&oe=6A77D3A9", "kind": "image", "len": null, "months": {"2026-03": [249.48, 2, 138.32]}}, {"id": "120212992952740408", "name": "Field to Freezer Giveaway | 12/11-12/22", "spend": 241.65, "impressions": 92224, "clicks": 4695, "purchases": 1, "value": 56.65, "roas": 0.23, "cpa": 241.65, "ctr": 5.09, "hook": null, "plays3s": 0, "firstMonth": "2024-12", "lastMonth": "2024-12", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 12, "isAd": false, "family": "giveaways", "familyLabel": "Giveaways (Link-Click)", "style": "Static", "talent": "None (product)", "hookCode": "Giveaway", "setting": "Giveaway promo graphics", "actor": "No actor (product only)", "aspect": "Static", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/562963363_25038433952453126_8950559314090621668_n.png?_nc_cat=109&ccb=1-7&_nc_ohc=M6u1WhB0Z2MQ7kNvwF-qu4M&_nc_oc=Adon_iz0nRa55xyjzsfu2_fAAN44p8A7slEU3XOXZYO3codUK3WN_cMtbXbpiVEr4rk&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQG8kplfI9b5bcpvxX8kWOUbJH7PMuEykMQUxI2ebcPxfp0ix4eRjUW4BatIg2Hw6ySP71fhscH1mw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=52f3c4&_nc_sid=58080a&oh=00_AQEuMZLE8MeUFJ2HHwWxMxLU3MDSLWIgJ__98Y8nVVT5MQ&oe=6A77C2FA", "kind": "image", "len": null, "months": {"2024-12": [241.65, 1, 56.65]}}, {"id": "120215346283570408", "name": "ERGOMAX (Lifestyle, Product, Review Carousel) | 1% Lookalike", "spend": 237.82, "impressions": 19654, "clicks": 234, "purchases": 2, "value": 89.84, "roas": 0.38, "cpa": 118.91, "ctr": 1.19, "hook": null, "plays3s": 0, "firstMonth": "2025-02", "lastMonth": "2025-02", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 9, "isAd": false, "family": "ergomax-early", "familyLabel": "ERGOMAX Early Tests (2024\u201325)", "style": "Mixed", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Lifestyle / product / review cards", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/8673410257272961005?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLT4JxAlQpa7NcQ09L6GgqT18Rn-Vgptu32lv70t2sYnRM_TnsjoY9VytQO0S75JZmfGAl-MN1mZEIvePyfyJztbCD85ixzHOITrcfmYcedtxvsG7HnZCrSC5FQ58aNpXYi0aMD_zH1vq6etVl-PDws&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_oc=AdpgGIgpzpDTKRpAyrWVqrvOMZKa5jRMWLIwbqXkvMNTtBJu9pf1NCWPVKn922FLkEA&ccb=13-1&oh=06_Q3_BAVeag0Q8UXZUx4FvJlxyf22dAwar6PtLbtJtIvev0YWK&oe=6A73E3D9&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2025-02": [237.82, 2, 89.84]}}, {"id": "120232340646060408", "name": "Meat Carver Set Video - AMZ", "spend": 217.05, "impressions": 21579, "clicks": 291, "purchases": 7, "value": 712.21, "roas": 3.28, "cpa": 31.01, "ctr": 1.35, "hook": null, "plays3s": 0, "firstMonth": "2025-10", "lastMonth": "2025-10", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 5, "isAd": false, "family": "meat-carver-video", "familyLabel": "Meat Carver Set \u2014 Video/Direct", "style": "Video", "talent": "None (product)", "hookCode": "Product-Demo", "setting": "Product demo footage", "actor": "No actor (product only)", "aspect": "Video", "variant": "AMZ", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.13418-10/557777387_3439845006153844_9183760701045804201_n.jpg?_nc_cat=110&ccb=1-7&_nc_ohc=VlCeWhbDoLcQ7kNvwFA5SGi&_nc_oc=AdpFw_ItR44D3nCHQW8MN9LhxLluQ-b9u15oxQUuXebdks_ulgFaprS-y16jsZpbt1o&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQG46xfpHf0srCIdpCklVCpmz9cwvyJhvB-sC9sIYQHaH0OXSrVQL-d05u4bl0SxY6Az-By6JbAblQ&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=7ca6ff&_nc_sid=58080a&oh=00_AQEX44Z88hiTcGergKqOMiylzNrDXttFmRG--aWIRBOxMw&oe=6A77B3C2", "kind": "video", "len": null, "months": {"2025-10": [217.05, 7, 712.21]}}, {"id": "120238020544280408", "name": "EM-1 Carousel", "spend": 210.6, "impressions": 44281, "clicks": 723, "purchases": 11, "value": 1053.94, "roas": 5.0, "cpa": 19.15, "ctr": 1.63, "hook": null, "plays3s": 0, "firstMonth": "2026-01", "lastMonth": "2026-02", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 15, "isAd": false, "family": "em-mcs-carousel", "familyLabel": "Ergo Meat Carver Set \u2014 Carousel", "style": "Carousel", "talent": "None (product)", "hookCode": "Product-Showcase", "setting": "Product / lifestyle carousel cards", "actor": "No actor (product only)", "aspect": "\u2014", "variant": "", "source": "inferred", "permalink": null, "thumb": null, "kind": null, "len": null, "months": {"2026-01": [134.3, 7, 782.45], "2026-02": [76.3, 4, 271.49]}}, {"id": "120238816024560408", "name": "Meat Carver Set-AMZ", "spend": 192.29, "impressions": 30507, "clicks": 309, "purchases": 1, "value": 52.33, "roas": 0.27, "cpa": 192.29, "ctr": 1.01, "hook": null, "plays3s": 0, "firstMonth": "2026-02", "lastMonth": "2026-02", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 5, "isAd": false, "family": "meat-carver-video", "familyLabel": "Meat Carver Set \u2014 Video/Direct", "style": "Video", "talent": "None (product)", "hookCode": "Product-Demo", "setting": "Product demo footage", "actor": "No actor (product only)", "aspect": "Carousel", "variant": "AMZ", "source": "inferred", "permalink": null, "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/16999424467182111188?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQIRzW4Kt9I1RPsxMv1Kamv8yKdynx26wWk3tdvLJJEwBeqSGGpfBsJgcqSvdn-iPOTGKVzVKPkSKLvrHsLBRCn1xGO3UxeFnwBbY0UL269TmgKzGammt7fJTnUBjpVhxSIajh3SeJ0KiRMAtmta1gJw&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpWzdqna2OB104xCPCh3jCVz3x4Df4LlzoXwt5VEzAseNDvi8IYxNBx6aOqMbkRUb4&ccb=13-1&oh=06_Q3_BARBvtoQubBKUn9pUZ4zXd1ulm3D4QfcZGgE3KsI7WyU9&oe=6A73AE41&_nc_sid=58080a", "kind": "carousel", "len": null, "months": {"2026-02": [192.29, 1, 52.33]}}, {"id": "120213174344330408", "name": "VX4 w/Bit.ly Link (Video) | 1% Lookalike", "spend": 186.12, "impressions": 30615, "clicks": 261, "purchases": 9, "value": 542.71, "roas": 2.92, "cpa": 20.68, "ctr": 0.85, "hook": null, "plays3s": 0, "firstMonth": "2024-12", "lastMonth": "2025-01", "monthsActive": 2, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 22, "isAd": false, "family": "vx-line-video", "familyLabel": "RazorVX Videos (VX1\u2013VX5)", "style": "Video", "talent": "None (voiceover)", "hookCode": "Product-Demo", "setting": "Hunting knife demo footage", "actor": "No actor (voiceover)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t15.5256-10/471590250_3030326363783183_6082362213036678893_n.jpg?_nc_cat=106&ccb=1-7&_nc_ohc=Rb_vKP2NVLgQ7kNvwHN35SW&_nc_oc=AdqjJzTyPx-Yo4_kr29yz7_6Ej656hvC-LqZJ8aCQ2qqfz7SDK41kW3BWoDjSK9JidU&_nc_zt=23&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQHENCLU4cAMGi6Uf-_vqnCATFX3Y2Stav-kmbhsCd63AmrTIXaHB-NSZ25WJJZQEVocjlZP4tFJNQ&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=d2b52d&_nc_sid=58080a&oh=00_AQFpHTi2Tk-lCfFGdSZhxaNdBLniTHoB3BqfhzeQORj76Q&oe=6A77B6AE", "kind": "video", "len": null, "months": {"2024-12": [54.63, 2, 114.74], "2025-01": [131.49, 7, 427.97]}}, {"id": "120212484340340408", "name": "EDC Lifestyle #3", "spend": 158.13, "impressions": 6276, "clicks": 175, "purchases": 0, "value": 0, "roas": 0.0, "cpa": null, "ctr": 2.79, "hook": null, "plays3s": 0, "firstMonth": "2024-11", "lastMonth": "2024-11", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 7, "isAd": false, "family": "edc-static", "familyLabel": "EDC Line \u2014 Lifestyle Statics", "style": "Static", "talent": "None (product)", "hookCode": "Lifestyle", "setting": "Lifestyle stills", "actor": "No actor (product only)", "aspect": "Static", "variant": "#3", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/563829209_25639053279016180_4624168045258265878_n.png?_nc_cat=102&ccb=1-7&_nc_ohc=of-flNmeaYAQ7kNvwFGcpmT&_nc_oc=Adq2yvmSBEWav6cHEFR9IIjSyoA7l5e9PSQEm2VWl9ji49EVVBGcQOLK8wtN1LYgpB4&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQGcn_eWj8_NwKuzzeJH1CUOAMlbu3qr3zPpv3sD67JTGzDWON-FyZjT47wCASEFjFEQAICByrtm1g&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=52f3c4&_nc_sid=58080a&oh=00_AQFt-Qftr6_Rjq2k3720uS0t0wmYrl2CC65N8CRS072R3g&oe=6A77C153", "kind": "image", "len": null, "months": {"2024-11": [158.13, 0, 0]}}, {"id": "120238449909550408", "name": "EM-MCS Video", "spend": 143.6, "impressions": 14328, "clicks": 207, "purchases": 2, "value": 91.86, "roas": 0.64, "cpa": 71.8, "ctr": 1.44, "hook": null, "plays3s": 0, "firstMonth": "2026-02", "lastMonth": "2026-02", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 14, "isAd": false, "family": "meat-carver-video", "familyLabel": "Meat Carver Set \u2014 Video/Direct", "style": "Video", "talent": "None (product)", "hookCode": "Product-Demo", "setting": "Product demo footage", "actor": "No actor (product only)", "aspect": "\u2014", "variant": "", "source": "inferred", "permalink": null, "thumb": null, "kind": null, "len": null, "months": {"2026-02": [143.6, 2, 91.86]}}, {"id": "120212832068900408", "name": "VX2 w/Bit.ly Link (Video) | Cold Audience", "spend": 119.75, "impressions": 14068, "clicks": 107, "purchases": 4, "value": 234.59, "roas": 1.96, "cpa": 29.94, "ctr": 0.76, "hook": null, "plays3s": 0, "firstMonth": "2024-12", "lastMonth": "2024-12", "monthsActive": 1, "ads": 1, "adsets": 1, "campaigns": 1, "spendL90": 0, "purchL90": 0, "roasL90": null, "daysActive": 12, "isAd": false, "family": "vx-line-video", "familyLabel": "RazorVX Videos (VX1\u2013VX5)", "style": "Video", "talent": "None (voiceover)", "hookCode": "Product-Demo", "setting": "Hunting knife demo footage", "actor": "No actor (voiceover)", "aspect": "Video", "variant": "", "source": "inferred", "permalink": null, "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t15.13418-10/467734979_1112361393576121_8143993211996936665_n.jpg?_nc_cat=106&ccb=1-7&_nc_ohc=W4nXMS35w8IQ7kNvwEolTV-&_nc_oc=AdqFfuSEK2kXCB2V1G3gQXj1hB_RprxRO36k3tuw3eMu4Xf0EFeJmKtF_mrQ7up5mms&_nc_zt=23&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQHS9eyIIBEV6mQel6Qo9o5rVxnHTrW1eSJ-3KEca-Xv-Zxd5O4dACn983NCyrkAUzuazu68EcZGKg&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=aaa768&_nc_sid=58080a&oh=00_AQHfy90julHyo98vWpUd2PYUnfrZtynAmfeeCp5J9KbJ0w&oe=6A77A341", "kind": "video", "len": null, "months": {"2024-12": [119.75, 4, 234.59]}}];
+const META = {"updated": "Aug 04, 2026 02:11 PM", "window": "Nov 1, 2024 \u2013 Aug 04, 2026", "totSpend": 37726.03, "totValue": 94603.48, "totPurch": 1093, "roas": 2.507644721694809, "videos": 47, "excludedN": 19, "excludedSpend": 563, "spendMin": 100, "monthAxis": ["2024-11", "2024-12", "2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"], "ads": {"l90": [{"id": "120235689605430408", "fullName": "Ergo Meat Carver Set Carousel", "name": "Ergo Meat Carver Set Carousel", "familyLabel": "Ergo Meat Carver Set \u2014 Carousel", "format": "carousel", "style": "Carousel", "talent": "None (product)", "hookCode": "Product-Showcase", "actor": "No actor (product only)", "adset": "Ergo Meat Carver Set Carousel", "firstSpend": "2025-12-05", "lastSpend": "2026-08-03", "daysActive": 64, "daysTotal": 124, "spend": 2239.65, "purchases": 46, "value": 4127.5, "impressions": 400965, "clicks": 3169, "roas": 1.8429218851159779, "cpa": 48.68804347826087, "ctr": 0.7903432967964785, "setting": "Product / lifestyle carousel cards", "aspect": "Carousel", "variant": "", "source": "inferred", "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/14277982601795829713?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLNA5USSx_31VP77EsJ6hUslmIBFlHRUxq-pc0SgsZJ7ceZ9QxqlN-bUa4RCZABePLPqcifrbWQK_2s_uVov3_H1UHax1Rnq_Lb9XOCwEDKnj1hbsIQtYwjoYSW_pSr5_CAXOXgepWyZMiphjeF4l7v&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpkOMjoHJ9wGYbqMwCSNjhczdyIdTVSgH21zNHM3KI8jmq0CnLL016OBNwbY3VFltE&ccb=13-1&oh=06_Q3_BAX8wmUsdIgIWSiQBhXLbsqUxCjF9X68fNpguPZWThVeC&oe=6A73D1EE&_nc_sid=58080a", "kind": "carousel", "permalink": null, "len": null, "isAd": true}, {"id": "120244655859050408", "fullName": "Father's Day Static", "name": "Father's Day Static", "familyLabel": "Father's Day 2026", "format": "image", "style": "Static", "talent": "None (product)", "hookCode": "Gift-Guide", "actor": "No actor (product only)", "adset": "Father's Day 2026", "firstSpend": "2026-06-05", "lastSpend": "2026-06-19", "daysActive": 15, "daysTotal": 15, "spend": 813.04, "purchases": 15, "value": 1243.83, "impressions": 77380, "clicks": 956, "roas": 1.52985092984355, "cpa": 54.202666666666666, "ctr": 1.2354613595244248, "setting": "Father's Day promo static", "aspect": "Static", "variant": "", "source": "inferred", "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t45.1600-4/717025297_10105624965193312_6179740793126479706_n.png?stp=dst-jpg_tt6&_nc_cat=106&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=WAbSLJjRleYQ7kNvwHNBnvV&_nc_oc=AdrbsfcVIPZpBoxuGeM5IGWrcih65h3Q3rI6T_sk8xCxO3IQGyDML90xuMYEZKub2Os&_nc_zt=1&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQHH2hqNfwWGMSyNtNhiksPu5ykuzuodIXTHSN6CQ1-qADygJlM6v0DvfmmcLEdwfS75nEwhXCtzXw&oh=00_AQFqF67zDB65fgFe7F7gU_gc4MR7xgNVcchiWZE4I2kM8g&oe=6A77AC0E", "kind": "image", "permalink": null, "len": null, "isAd": true}, {"id": "120246179850760408", "fullName": "OE | Retargeting | Video 4x5 | Site Visitors - No Purchase | v1", "name": "OE | Retargeting | Video 4x5 | Site Visitors - No Purchase | v1", "familyLabel": "Retargeting \u2014 Site Visitors (2026)", "format": "video", "style": "Video", "talent": "None (product)", "hookCode": "Reminder", "actor": "No actor (product only)", "adset": "OE | Site Visitors 90D - No Purchase | All Placements", "firstSpend": "2026-06-26", "lastSpend": "2026-07-20", "daysActive": 25, "daysTotal": 25, "spend": 495.19, "purchases": 3, "value": 198.54, "impressions": 24679, "clicks": 547, "roas": 0.4009370140754054, "cpa": 165.06333333333333, "ctr": 2.2164593378986184, "setting": "4x5 retargeting video", "aspect": "4:5", "variant": "", "source": "inferred", "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t15.5256-10/731632159_2151156608760157_3290148551665541606_n.jpg?_nc_cat=106&ccb=1-7&_nc_ohc=G0bEZHMakrcQ7kNvwF2avsB&_nc_oc=Adpeq8qIoXwSyvuaNUCi5w90bwDVuFm3YbIFjfwkwRO3W0u4qM69w0QZz4gzGGvuIrQ&_nc_zt=23&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQF0QYyRn-azYXMkMUrGfhOAw5uxtZ2plrBJF0tc_w7awb_3JmmXwI6IrhPzG6pkaQIwaViXeeM8Nw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=5fad0e&_nc_sid=58080a&oh=00_AQHaY4QzC7qKAGIwI5Y1p-AVN9OTZvAnX01pBPoSUVqbog&oe=6A77D0CF", "kind": "video", "permalink": null, "len": null, "isAd": true}, {"id": "120246185628330408", "fullName": "Ergo Catalog", "name": "Ergo Catalog", "familyLabel": "Ergo Catalog / Static (2026 tests)", "format": "image", "style": "Static", "talent": "None (product)", "hookCode": "Product-Showcase", "actor": "No actor (product only)", "adset": "EM-MCS | Static Image | Maximize Conversions", "firstSpend": "2026-06-26", "lastSpend": "2026-07-06", "daysActive": 11, "daysTotal": 11, "spend": 449.03, "purchases": 4, "value": 364.16, "impressions": 47114, "clicks": 949, "roas": 0.8109925840144312, "cpa": 112.2575, "ctr": 2.014263276308528, "setting": "Catalog & static product imagery", "aspect": "Static", "variant": "", "source": "inferred", "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t39.2147-6/75341531_494485104475166_2751028116179648512_n.png?_nc_cat=1&ccb=1-7&_nc_ohc=fZYfvyN2D2wQ7kNvwELt7Zq&_nc_oc=Adr8f_6KJ26S12zdOmrT8zhfV-1Iqx4VaG97YLvejOddwcQmwpSrlCwZfooXS5g7u-k&_nc_zt=14&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQEzP30FnKcZwimFy20u0wj-15axxbEyib7k-ypnNz_DGXyo2QaJHbS24F7lprd6yz7W4VKafCsMJw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=39b8c1&_nc_sid=58080a&oh=00_AQGchtKidH4Zy2Iv0qXy2GFsRySt2SEfH6w0_kMCOsmadg&oe=6A77A984", "kind": "image", "permalink": null, "len": null, "isAd": true}, {"id": "120246610315990408", "fullName": "Ergo Meat Carver Set Carousel [A/B Test]", "name": "Ergo Meat Carver Set Carousel [A/B Test] A/B test", "familyLabel": "Ergo Meat Carver Set \u2014 Carousel", "format": "carousel", "style": "Carousel", "talent": "None (product)", "hookCode": "Product-Showcase", "actor": "No actor (product only)", "adset": "EM-MCS | A/B Test | Carousel", "firstSpend": "2026-07-06", "lastSpend": "2026-07-22", "daysActive": 17, "daysTotal": 17, "spend": 432.67, "purchases": 1, "value": 153.14, "impressions": 26903, "clicks": 551, "roas": 0.3539418032218549, "cpa": 432.67, "ctr": 2.048098725049251, "setting": "Product / lifestyle carousel cards", "aspect": "Carousel", "variant": "A/B test", "source": "inferred", "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/14277982601795829713?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLNA5USSx_31VP77EsJ6hUslmIBFlHRUxq-pc0SgsZJ7ceZ9QxqlN-bUa4RCZABePLPqcifrbWQK_2s_uVov3_H1UHax1Rnq_Lb9XOCwEDKnj1hbsIQtYwjoYSW_pSr5_CAXOXgepWyZMiphjeF4l7v&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpkOMjoHJ9wGYbqMwCSNjhczdyIdTVSgH21zNHM3KI8jmq0CnLL016OBNwbY3VFltE&ccb=13-1&oh=06_Q3_BAX8wmUsdIgIWSiQBhXLbsqUxCjF9X68fNpguPZWThVeC&oe=6A73D1EE&_nc_sid=58080a", "kind": "carousel", "permalink": null, "len": null, "isAd": true}, {"id": "120234018572670408", "fullName": "New Sales Ad", "name": "New Sales Ad", "familyLabel": "RazorAPX", "format": "video", "style": "Mixed", "talent": "None (product)", "hookCode": "Product-Showcase", "actor": "No actor (product only)", "adset": "APX Video", "firstSpend": "2025-11-06", "lastSpend": "2026-08-03", "daysActive": 7, "daysTotal": 44, "spend": 351.09, "purchases": 6, "value": 699.9, "impressions": 26313, "clicks": 551, "roas": 1.99350593864821, "cpa": 58.51499999999999, "ctr": 2.0940219663284307, "setting": "Product showcase (site + AMZ)", "aspect": "Video", "variant": "", "source": "inferred", "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.5256-10/577743765_1907140343487080_4671344913215384248_n.jpg?_nc_cat=105&ccb=1-7&_nc_ohc=NKFSG40y3P8Q7kNvwEIPH4M&_nc_oc=Adrm1WrvKWdleO4fRuKIwox1DWVQrjUT7F78JhneqJ4NbhaYVSBaZTF66LLNxvpkgrk&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQGDmxJQy2qEGVZw5c3AcYKtBC-p-nVQ8sZVRidZxkKPZb3vs2yO68MjYyF6ZKIXWUEyHBBH3KMxZg&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=5fad0e&_nc_sid=58080a&oh=00_AQEcoaCFXf5D43oyt8ksfh0UpvJgFlZb9PS8fYy71NgwUg&oe=6A77D441", "kind": "video", "permalink": null, "len": null, "isAd": true}, {"id": "120246609768170408", "fullName": "Ergo Catalog [A/B Test - Static]", "name": "Ergo Catalog [A/B Test - Static] A/B test", "familyLabel": "Ergo Catalog / Static (2026 tests)", "format": "image", "style": "Static", "talent": "None (product)", "hookCode": "Product-Showcase", "actor": "No actor (product only)", "adset": "EM-MCS | A/B Test | Static Image", "firstSpend": "2026-07-06", "lastSpend": "2026-07-20", "daysActive": 15, "daysTotal": 15, "spend": 341.05, "purchases": 5, "value": 461.8, "impressions": 37728, "clicks": 642, "roas": 1.3540536578214337, "cpa": 68.21000000000001, "ctr": 1.7016539440203562, "setting": "Catalog & static product imagery", "aspect": "Static", "variant": "A/B test", "source": "inferred", "thumb": "https://scontent-sea1-1.xx.fbcdn.net/v/t39.2147-6/75341531_494485104475166_2751028116179648512_n.png?_nc_cat=1&ccb=1-7&_nc_ohc=fZYfvyN2D2wQ7kNvwELt7Zq&_nc_oc=Adr8f_6KJ26S12zdOmrT8zhfV-1Iqx4VaG97YLvejOddwcQmwpSrlCwZfooXS5g7u-k&_nc_zt=14&_nc_ht=scontent-sea1-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQEzP30FnKcZwimFy20u0wj-15axxbEyib7k-ypnNz_DGXyo2QaJHbS24F7lprd6yz7W4VKafCsMJw&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=39b8c1&_nc_sid=58080a&oh=00_AQGchtKidH4Zy2Iv0qXy2GFsRySt2SEfH6w0_kMCOsmadg&oe=6A77A984", "kind": "image", "permalink": null, "len": null, "isAd": true}, {"id": "120217428852260408", "fullName": "EDC Line Dynamic Creative (10 Assets) | 2% Lookalike", "name": "EDC Line Dynamic Creative (10 Assets) | 2% Lookalike", "familyLabel": "EDC Line \u2014 Dynamic Creative", "format": "image", "style": "Dynamic", "talent": "None (product)", "hookCode": "Product-Showcase", "actor": "No actor (product only)", "adset": "EDC Line Dynamic Creative (10 Assets) | 2% Lookalike", "firstSpend": "2025-03-19", "lastSpend": "2026-07-23", "daysActive": 4, "daysTotal": 17, "spend": 203.63, "purchases": 7, "value": 535.56, "impressions": 20630, "clicks": 620, "roas": 2.630064332367529, "cpa": 29.09, "ctr": 3.005332040717402, "setting": "10-asset dynamic mix", "aspect": "Static", "variant": "", "source": "inferred", "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/563829209_25639053279016180_4624168045258265878_n.png?stp=dst-jpg_tt6&_nc_cat=102&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=of-flNmeaYAQ7kNvwHF1zwf&_nc_oc=AdrnLwRLzOTTbzFVXMtK8-HYwqOefdTPIl-6g90zL0BsJDCJmByibjQiAtXnyPGXtzo&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQGAcb7famG5_hrNYkAv78zC5tPYqEEFTMbtRR-SKTW9jCRy1Igv45BmDMYzX8msAcNhg2b9HvfbmA&oh=00_AQHip95oL88uKiTh4ZcGnhOnRwH2suqxyuNHGp10kBxSRg&oe=6A77C153", "kind": "image", "permalink": null, "len": null, "isAd": true}, {"id": "120243716278260408", "fullName": "Bundle Up & Save Up to $24", "name": "Bundle Up & Save Up to $24", "familyLabel": "Summer Promotions 2026", "format": "image", "style": "Mixed", "talent": "None (product)", "hookCode": "Discount", "actor": "No actor (product only)", "adset": "Slice Into Summer", "firstSpend": "2026-05-22", "lastSpend": "2026-05-24", "daysActive": 3, "daysTotal": 3, "spend": 98.86, "purchases": 0, "value": 0, "impressions": 9849, "clicks": 162, "roas": 0.0, "cpa": null, "ctr": 1.6448370392933294, "setting": "Summer sale statics + carousel", "aspect": "Static", "variant": "", "source": "inferred", "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/700469535_122309180096211000_475165540118081255_n.png?stp=dst-jpg_tt6&_nc_cat=102&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=RJhkKQC71OMQ7kNvwFxk7a4&_nc_oc=AdpEMnsJFFM4CBqQQ0vGXCuV3WWtt5iWnXMW4lqjVIwI7pOFs77e6GrPragu2c5YFkk&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQGXFCi6YxSZVRa1e-UjfQOmOo8HWHcZfej2lKmVx0mRdgo8DfI8ge7A1KsvBfc8x-y4zVKlKoaOLQ&oh=00_AQEFxUPMd6UlJjvdQz7OXLDKrnn3bkc5sa71qRNHbxwyBA&oe=6A77D30F", "kind": "image", "permalink": null, "len": null, "isAd": true}, {"id": "120246363864430408", "fullName": "Ergo Meat Carver Set Carousel", "name": "Ergo Meat Carver Set Carousel", "familyLabel": "Ergo Meat Carver Set \u2014 Carousel", "format": "carousel", "style": "Carousel", "talent": "None (product)", "hookCode": "Product-Showcase", "actor": "No actor (product only)", "adset": "EM-MCS | Carousel | Maximize Conversions", "firstSpend": "2026-06-29", "lastSpend": "2026-07-06", "daysActive": 8, "daysTotal": 8, "spend": 49.45, "purchases": 0, "value": 0, "impressions": 3375, "clicks": 77, "roas": 0.0, "cpa": null, "ctr": 2.2814814814814817, "setting": "Product / lifestyle carousel cards", "aspect": "Carousel", "variant": "", "source": "inferred", "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/14277982601795829713?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLNA5USSx_31VP77EsJ6hUslmIBFlHRUxq-pc0SgsZJ7ceZ9QxqlN-bUa4RCZABePLPqcifrbWQK_2s_uVov3_H1UHax1Rnq_Lb9XOCwEDKnj1hbsIQtYwjoYSW_pSr5_CAXOXgepWyZMiphjeF4l7v&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpkOMjoHJ9wGYbqMwCSNjhczdyIdTVSgH21zNHM3KI8jmq0CnLL016OBNwbY3VFltE&ccb=13-1&oh=06_Q3_BAX8wmUsdIgIWSiQBhXLbsqUxCjF9X68fNpguPZWThVeC&oe=6A73D1EE&_nc_sid=58080a", "kind": "carousel", "permalink": null, "len": null, "isAd": true}, {"id": "120243194011770408", "fullName": "Slice Into Summer | Carousel 001", "name": "Slice Into Summer | Carousel 001", "familyLabel": "Summer Promotions 2026", "format": "carousel", "style": "Mixed", "talent": "None (product)", "hookCode": "Discount", "actor": "No actor (product only)", "adset": "Slice Into Summer", "firstSpend": "2026-05-21", "lastSpend": "2026-05-22", "daysActive": 2, "daysTotal": 2, "spend": 35.31, "purchases": 0, "value": 0, "impressions": 2849, "clicks": 33, "roas": 0.0, "cpa": null, "ctr": 1.1583011583011582, "setting": "Summer sale statics + carousel", "aspect": "Carousel", "variant": "", "source": "inferred", "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/14809121955685852094?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQJOYiNazeQ-lPOuQENoszYCUJ7qVvrP7h8Q0WyTZempTJHa1D_Zw749_f2QOt-xTxkIJdu2v0hzXfmj52KOn_NmDSpW9kyUuj6-1pvVX_2RK_Df-sbb3qQJCkwGDThOVmHrEiCcCwIJjRIWKGJtGi_v&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=Adrwoo0JB9S4XhwiK4RSiaHstMcu8RheMwY7Ec5H0vWV-Lm2AIS04wM2X4db6awnF5Q&ccb=13-1&oh=06_Q3_BAT01SbaVxnXWGCwMjSN7Z9Jrrb_DYmrhOPVAGCSkf00Z&oe=6A73C0BC&_nc_sid=58080a", "kind": "carousel", "permalink": null, "len": null, "isAd": true}, {"id": "120243716262110408", "fullName": "Save Over $20 This Summer", "name": "Save Over $20 This Summer", "familyLabel": "Summer Promotions 2026", "format": "image", "style": "Mixed", "talent": "None (product)", "hookCode": "Discount", "actor": "No actor (product only)", "adset": "Slice Into Summer", "firstSpend": "2026-05-22", "lastSpend": "2026-05-24", "daysActive": 3, "daysTotal": 3, "spend": 18.28, "purchases": 0, "value": 0, "impressions": 1644, "clicks": 23, "roas": 0.0, "cpa": null, "ctr": 1.3990267639902676, "setting": "Summer sale statics + carousel", "aspect": "Static", "variant": "", "source": "inferred", "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/700391114_122309180060211000_7546992084416212673_n.png?stp=dst-jpg_tt6&_nc_cat=110&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=8XAc73-OFyYQ7kNvwFDqfdH&_nc_oc=AdpnOBgHuRiCGMjcGgbfRhNyE4HT24niLNun9BVcHgHOKcwAJ3qLCmkVyReVDeLdFu8&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQGbZBcTQuqALejH8yFHlkxOY2HbJKeoO-W1hKFOgt2Iruv5j5Kb6fQQ23lh9A3E8yFpUzv7p_XZWw&oh=00_AQFgFSgTu61O8CT5bPXYPKxpRo8OE4yccVDjcyzd1OCOyw&oe=6A77CAFA", "kind": "image", "permalink": null, "len": null, "isAd": true}, {"id": "120243716235780408", "fullName": "Slice Into Summer \u2014 15% Off", "name": "Slice Into Summer \u2014 15% Off", "familyLabel": "Summer Promotions 2026", "format": "image", "style": "Mixed", "talent": "None (product)", "hookCode": "Discount", "actor": "No actor (product only)", "adset": "Slice Into Summer", "firstSpend": "2026-05-22", "lastSpend": "2026-05-24", "daysActive": 3, "daysTotal": 3, "spend": 17.35, "purchases": 0, "value": 0, "impressions": 1532, "clicks": 21, "roas": 0.0, "cpa": null, "ctr": 1.370757180156658, "setting": "Summer sale statics + carousel", "aspect": "Static", "variant": "", "source": "inferred", "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t45.1600-4/700452142_122309180078211000_2118152818579250237_n.png?stp=dst-jpg_tt6&_nc_cat=110&ccb=1-7&_nc_sid=d5bd00&_nc_ohc=s9oTb0DhwJQQ7kNvwHcecy-&_nc_oc=AdrqMmgMmK0PvRGRaAONoEBI4xgSrbHn6pZpqhbl3GOvr6GyuJXQBHLYY9loIfjFZdM&_nc_zt=1&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=BGZu7solGFtSruJltXFWhg&_nc_tpa=Q5bMBQFW2HBELpxLLjAShixcCHpxVUGfmT_Mxa4oB4i8DcocgQzjN2g65sdwAPK-HKWtcAdn2mKVc88d9A&oh=00_AQGJ6dKW8uiqbWfg_r6Oz3augKeNyGSebt1PC2NglluEog&oe=6A77D4D3", "kind": "image", "permalink": null, "len": null, "isAd": true}], "l10": [{"id": "120235689605430408", "fullName": "Ergo Meat Carver Set Carousel", "name": "Ergo Meat Carver Set Carousel", "familyLabel": "Ergo Meat Carver Set \u2014 Carousel", "format": "carousel", "style": "Carousel", "talent": "None (product)", "hookCode": "Product-Showcase", "actor": "No actor (product only)", "adset": "Ergo Meat Carver Set Carousel", "firstSpend": "2025-12-05", "lastSpend": "2026-08-03", "daysActive": 10, "daysTotal": 124, "spend": 545.01, "purchases": 7, "value": 581.56, "impressions": 33889, "clicks": 524, "roas": 1.0670629896699142, "cpa": 77.85857142857142, "ctr": 1.546224438608398, "setting": "Product / lifestyle carousel cards", "aspect": "Carousel", "variant": "", "source": "inferred", "thumb": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/14277982601795829713?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQLNA5USSx_31VP77EsJ6hUslmIBFlHRUxq-pc0SgsZJ7ceZ9QxqlN-bUa4RCZABePLPqcifrbWQK_2s_uVov3_H1UHax1Rnq_Lb9XOCwEDKnj1hbsIQtYwjoYSW_pSr5_CAXOXgepWyZMiphjeF4l7v&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_oc=AdpkOMjoHJ9wGYbqMwCSNjhczdyIdTVSgH21zNHM3KI8jmq0CnLL016OBNwbY3VFltE&ccb=13-1&oh=06_Q3_BAX8wmUsdIgIWSiQBhXLbsqUxCjF9X68fNpguPZWThVeC&oe=6A73D1EE&_nc_sid=58080a", "kind": "carousel", "permalink": null, "len": null, "isAd": true}, {"id": "120234018572670408", "fullName": "New Sales Ad", "name": "New Sales Ad", "familyLabel": "RazorAPX", "format": "video", "style": "Mixed", "talent": "None (product)", "hookCode": "Product-Showcase", "actor": "No actor (product only)", "adset": "APX Video", "firstSpend": "2025-11-06", "lastSpend": "2026-08-03", "daysActive": 7, "daysTotal": 44, "spend": 351.09, "purchases": 6, "value": 699.9, "impressions": 26313, "clicks": 551, "roas": 1.99350593864821, "cpa": 58.51499999999999, "ctr": 2.0940219663284307, "setting": "Product showcase (site + AMZ)", "aspect": "Video", "variant": "", "source": "inferred", "thumb": "https://scontent-sea5-1.xx.fbcdn.net/v/t15.5256-10/577743765_1907140343487080_4671344913215384248_n.jpg?_nc_cat=105&ccb=1-7&_nc_ohc=NKFSG40y3P8Q7kNvwEIPH4M&_nc_oc=Adrm1WrvKWdleO4fRuKIwox1DWVQrjUT7F78JhneqJ4NbhaYVSBaZTF66LLNxvpkgrk&_nc_zt=23&_nc_ht=scontent-sea5-1.xx&edm=AEZPnVgEAAAA&_nc_gid=UUf6_gSDEnfbH1AhpzTULw&_nc_tpa=Q5bMBQGDmxJQy2qEGVZw5c3AcYKtBC-p-nVQ8sZVRidZxkKPZb3vs2yO68MjYyF6ZKIXWUEyHBBH3KMxZg&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75_tt6&ur=5fad0e&_nc_sid=58080a&oh=00_AQEcoaCFXf5D43oyt8ksfh0UpvJgFlZb9PS8fYy71NgwUg&oe=6A77D441", "kind": "video", "permalink": null, "len": null, "isAd": true}]}, "adsMeta": {"why": "Meta's video_asset breakdown silently omits spend for flexible/Advantage+ creative ads, so recent windows must be read at AD level to reconcile with Ads Manager.", "l10": {"since": "2026-07-25", "until": "2026-08-03", "label": "Last 10 days"}, "l90": {"since": "2026-05-06", "until": "2026-08-03", "label": "Last 90 days"}, "pulled_at": "2026-08-04 08:10:28 CDT", "account_alltime": {"since": "2024-11-01", "until": "2026-08-03", "spend": 38289.12, "impressions": 4978452, "purch": 1110, "value": 96111.79}, "adset_note": "Ad set names from a level=adset pull; same creative can run in multiple ad sets."}, "accountId": "3453197348315496", "acctSpend": 38289.12, "acctPurch": 1110, "acctValue": 96111.79, "l10Since": "2026-07-25", "l10Until": "2026-08-03", "l90Since": "2026-05-06", "l90Until": "2026-08-03", "adsPulledAt": "2026-08-04 08:10:28 CDT"};
+const AXIS = META.monthAxis;
+let MODE = "all"; // "all" | "l90"
+let TGT = 2.0;
+try{ const s=localStorage.getItem("oe_tgt"); if(s && parseFloat(s)>0) TGT=parseFloat(s); }catch(e){}
+const fmt$ = v => v==null ? "—" : "$"+Math.round(v).toLocaleString();
+const fmtN = v => v==null ? "—" : v.toLocaleString();
+const fmtP = v => v==null ? "—" : v.toFixed(1)+"%";
+const roasPill = r => r==null ? '<span class="pill na">n/a</span>' :
+  r>=TGT ? `<span class="pill good">${r.toFixed(2)}</span>` :
+  r>=0.9 ? `<span class="pill ok">${r.toFixed(2)}</span>` : `<span class="pill bad">${r.toFixed(2)}</span>`;
+const roasColor = r => r==null ? "#5b6270" : r>=TGT ? "#34d399" : r>=0.9 ? "#fbbf24" : "#f87171";
+
+// ---- Monthly sparklines + fatigue trend ----
+function spark(d, bw=3, h=18){
+  const ms = d.months||{};
+  let max = 1;
+  AXIS.forEach(m=>{ if(ms[m] && ms[m][0]>max) max=ms[m][0]; });
+  const ticks = AXIS.map((m,i)=> m.endsWith("-01")
+    ? `<line x1="${i*(bw+1)-0.5}" y1="0" x2="${i*(bw+1)-0.5}" y2="${h}" stroke="#3a4150" stroke-width="1"/>` : "").join("");
+  const bars = AXIS.map((m,i)=>{
+    const v = ms[m];
+    if(!v || v[0]<=0)
+      return `<rect x="${i*(bw+1)}" y="${h-1.5}" width="${bw}" height="1.5" fill="#262b35" data-tip="<b>${m}</b> · no spend"/>`;
+    const bh = Math.max(2, Math.round((h-2)*Math.sqrt(v[0]/max)));
+    const roas = v[0]? v[2]/v[0] : null;
+    return `<rect x="${i*(bw+1)}" y="${h-bh}" width="${bw}" height="${bh}" rx="1" fill="${roasColor(roas)}" data-tip="<b>${m}</b> · ${fmt$(v[0])} · ${v[1]} purch · ROAS ${roas==null?"n/a":roas.toFixed(2)}"/>`;
+  }).join("");
+  return `<svg width="${AXIS.length*(bw+1)}" height="${h}" style="display:inline-block;vertical-align:middle">${ticks}${bars}</svg>`;
+}
+// Fast custom tooltip for sparkline bars (vertical ticks mark January)
+document.addEventListener("mouseover", e=>{
+  const r = e.target.closest && e.target.closest("rect[data-tip]");
+  const tip = document.getElementById("stip");
+  if(!r){ if(tip) tip.style.display="none"; return; }
+  tip.innerHTML = r.dataset.tip;
+  tip.style.display="block";
+});
+document.addEventListener("mousemove", e=>{
+  const tip = document.getElementById("stip");
+  if(tip && tip.style.display==="block"){
+    tip.style.left = Math.min(e.clientX+14, window.innerWidth-230)+"px";
+    tip.style.top = (e.clientY-34)+"px";
+  }
+});
+
+// ---- Multi-select filter widget ----
+const MSEL = {};
+function makeMulti(id, label, values, onChange){
+  const root = document.getElementById(id);
+  root.className = "msel";
+  const sel = new Set(); MSEL[id] = {sel, label};
+  root.innerHTML = `<button type="button"></button><div class="panel"><div class="clr">Clear selection</div>`+
+    values.map(v=>`<label><input type="checkbox" value="${String(v).replace(/"/g,"&quot;")}"> ${v}</label>`).join("")+`</div>`;
+  const btn = root.querySelector("button");
+  const upd = ()=>{
+    btn.textContent = sel.size===0 ? `${label}: all ▾`
+      : sel.size===1 ? `${label}: ${[...sel][0].length>20?[...sel][0].slice(0,20)+"…":[...sel][0]} ▾`
+      : `${label}: ${sel.size} selected ▾`;
+    btn.classList.toggle("active", sel.size>0);
+  };
+  root.querySelectorAll("input").forEach(cb=>cb.addEventListener("change", ()=>{
+    cb.checked ? sel.add(cb.value) : sel.delete(cb.value);
+    upd(); onChange();
+  }));
+  root.querySelector(".clr").onclick = ()=>{
+    sel.clear(); root.querySelectorAll("input").forEach(cb=>cb.checked=false);
+    upd(); onChange();
+  };
+  btn.onclick = ()=>{
+    document.querySelectorAll(".msel.open").forEach(m=>{ if(m!==root) m.classList.remove("open"); });
+    root.classList.toggle("open");
+  };
+  upd();
+}
+document.addEventListener("click", e=>{
+  if(!e.target.closest(".msel")) document.querySelectorAll(".msel.open").forEach(m=>m.classList.remove("open"));
+});
+const mpass = (id, val) => { const m=MSEL[id]; return !m || m.sel.size===0 || m.sel.has(val); };
+const mdesc = id => { const m=MSEL[id]; return (m && m.sel.size) ? m.label+": "+[...m.sel].join(" | ") : null; };
+function calcTrend(d){
+  const ms = Object.entries(d.months||{}).filter(([m,v])=>v[0]>50).sort((a,b)=>a[0]<b[0]?-1:1);
+  if(ms.length<3) return null;
+  const agg = a=>a.reduce((t,[m,v])=>[t[0]+v[0],t[1]+v[1],t[2]+v[2]],[0,0,0]);
+  const R=agg(ms.slice(-2)), P=agg(ms.slice(0,-2));
+  if(R[1]+P[1] < 8 || !R[0] || !P[0] || !P[2]) return null;
+  const ratio = (R[2]/R[0]) / (P[2]/P[0]);
+  return ratio>=1.15? 1 : ratio<=0.85? -1 : 0;
+}
+DATA.forEach(d=>{ d.trend = calcTrend(d); d.trendRank = d.trend==null? -9 : d.trend; });
+const trendIcon = d => d.trend==null ? "" :
+  d.trend===1 ? '<span class="g" title="Recent-month ROAS ≥ 15% above earlier months" style="font-weight:700"> ▲</span>' :
+  d.trend===-1 ? '<span class="r" title="Recent-month ROAS ≥ 15% below earlier months — fatigue" style="font-weight:700"> ▼</span>' :
+  '<span style="color:var(--muted)" title="Recent-month ROAS within ±15% of earlier months"> →</span>';
+const tags = d => `<span class="tag style">${d.style}</span><span class="tag talent">${d.talent}</span><span class="tag hookc">${d.hookCode}</span><span class="tag aspect">${d.aspect}</span>`;
+const ranTxt = d => d.firstMonth===d.lastMonth ? d.firstMonth : d.firstMonth+" → "+d.lastMonth;
+
+// One lens, three windows: all-time AND the recent windows are AD-level
+// (all reconcile with Ads Manager — see coverage panel).
+const ADS = META.ads || {};
+const isAd = () => MODE !== "all";
+const SRC = () => MODE === "all" ? DATA : (ADS[MODE] || []);
+// Each row already carries its own window's numbers, so M() is just a shape adapter.
+const M = d => ({spend:d.spend, purch:d.purchases, value:d.value, impr:d.impressions,
+                 plays:d.plays3s||0, clicks:d.clicks});
+const MODE_CAP = {all:"ALL TIME (ad level) · ", l90:"LAST 90 DAYS (ad level) · ", l10:"LAST 10 DAYS (ad level) · "};
+const mroas = d => {const m=M(d); return m.spend? m.value/m.spend : null;};
+const mcpa  = d => {const m=M(d); return m.purch? m.spend/m.purch : null;};
+
+// Verdicts. Ad rows (recent, actionable): judge on their own window numbers.
+// All-time rows (lifetime history): grade the track record, and flag retired winners.
+function verdictAd(d){
+  if(d.purchases<5) return ["Low signal","na",3];
+  if(d.roas>=TGT) return ["Scale","good",0];
+  if(d.roas>=0.9) return ["Keep","ok",1];
+  return ["Cut?","bad",2];
+}
+function verdictVid(d){
+  if(d.spendL90>0){
+    if(d.purchL90<5) return ["Live · low signal","na",3];
+    if(d.roasL90>=TGT) return ["Live · strong","good",0];
+    if(d.roasL90>=0.9) return ["Live · ok","ok",1];
+    return ["Live · weak","bad",2];
+  }
+  if((d.roas||0)>=TGT+0.4 && d.purchases>=15) return ["Revive?","rev",4];
+  return ["Retired","na",5];
+}
+function applyVerdicts(){
+  DATA.forEach(d=>{const v=verdictVid(d); d.verdict=v[0]; d.verdictCls=v[1]; d.verdictRank=v[2];});
+  Object.values(ADS).forEach(list=>list.forEach(d=>{
+    const v=verdictAd(d); d.verdict=v[0]; d.verdictCls=v[1]; d.verdictRank=v[2];}));
+  document.querySelectorAll(".tgtL").forEach(el=>el.textContent=TGT.toFixed(1));
+  document.querySelectorAll(".tgtRL").forEach(el=>el.textContent=(TGT+0.4).toFixed(1));
+}
+applyVerdicts();
+const vPill = d => `<span class="pill ${d.verdictCls}">${d.verdict}</span>`;
+
+function renderKpis(){
+  const rows = SRC().filter(d=>M(d).spend>0);
+  const s={spend:0,value:0,purch:0};
+  rows.forEach(d=>{const m=M(d); s.spend+=m.spend; s.value+=m.value; s.purch+=m.purch;});
+  const top = rows.slice().sort((a,b)=>M(b).spend-M(a).spend)[0];
+  const unit = " ads";
+  document.getElementById("kpis").innerHTML = [
+    ["Spend", fmt$(s.spend), rows.length+unit],
+    ["Revenue", fmt$(s.value), s.purch+" purchases"],
+    ["Blended ROAS", s.spend?(s.value/s.spend).toFixed(2):"—", (s.value/s.spend)>=1?"above breakeven":"below breakeven"],
+    ["Blended CPA", s.purch?fmt$(s.spend/s.purch):"—", "spend ÷ purchases"],
+    ["Top ad share", top? (100*M(top).spend/s.spend).toFixed(0)+"%":"—", top?top.name.slice(0,28):""],
+  ].map(([l,v,n])=>`<div class="kpi"><div class="label">${l}</div><div class="val">${v}</div><div class="note">${n}</div></div>`).join("");
+  // Coverage / reconciliation panel
+  const cov = document.getElementById("coverage");
+  if(MODE==="all"){
+    cov.innerHTML = `<b>Reconciles with Ads Manager:</b> all-time rows are <b>ads</b> (lifetime numbers,
+      Nov 1, 2024 → today), covering 100% of account spend — account lifetime totals:
+      ${fmt$(META.acctSpend)} spend / ${META.acctPurch} purchases / ${fmt$(META.acctValue)} revenue.
+      The table hides ${META.excludedN} ads under $${META.spendMin} lifetime spend ($${META.excludedSpend.toLocaleString()} combined) as noise.
+      Per-video-file analysis isn't possible on this account — ~96% of spend is flexible/carousel/static
+      creative that Meta's video_asset breakdown doesn't attribute to individual assets.`;
+  } else {
+    cov.innerHTML = `<b>Reconciles with Ads Manager:</b> ad-level data for
+      <b>${META[MODE+"Since"]} → ${META[MODE+"Until"]}</b> (set that exact custom range in Ads Manager to compare).
+      Totals above = ${fmt$(s.spend)} spend / ${s.purch} purchases / ${fmt$(s.value)} revenue across ${rows.length} ads.
+      Data as of ${META.adsPulledAt}; purchases keep attributing for ~7 days, so recent numbers still rise.
+      Rows are <b>ads</b>, tagged from the curated strategy taxonomy (all concepts inferred from ad/campaign names).`;
+  }
+}
+
+// Callouts are decision-oriented, so they always read the L90 AD-LEVEL data
+// (accurate + current), except Revive which is by definition historical.
+function renderCallouts(){
+  const live = ADS.l90 || [];
+  const win = live.filter(d=>d.verdict==="Scale").sort((a,b)=>b.spend-a.spend);
+  const cut = live.filter(d=>d.verdict==="Cut?").sort((a,b)=>b.spend-a.spend);
+  const rev = DATA.filter(d=>d.verdict==="Revive?").sort((a,b)=>(b.roas||0)-(a.roas||0));
+  const li=(d,roas,spend)=>`<li><b>${d.name}</b> — ${fmt$(spend)} · ROAS ${roas==null?"n/a":roas.toFixed(2)}</li>`;
+  document.getElementById("winners").innerHTML = win.map(d=>li(d,d.roas,d.spend)).join("")||"<li>None right now</li>";
+  document.getElementById("revive").innerHTML  = rev.slice(0,8).map(d=>li(d,d.roas,d.spend)).join("")||"<li>None</li>";
+  document.getElementById("leaks").innerHTML   = cut.map(d=>li(d,d.roas,d.spend)).join("")||"<li>None right now</li>";
+}
+
+// ---- Strategy rollup (sortable, mode-aware, efficiency-first) ----
+let dimChart=null, dimSortK="roas", dimSortDir=-1;
+const vLines = {id:"vLines", afterDraw(chart, args, opts){
+  if(!opts || !opts.lines) return;
+  const {ctx, chartArea:{top,bottom}, scales:{x}} = chart;
+  opts.lines.forEach(l=>{
+    if(l.v==null || l.v < x.min || l.v > x.max) return;
+    const px = x.getPixelForValue(l.v);
+    ctx.save(); ctx.strokeStyle=l.c; ctx.setLineDash(l.dash||[5,4]);
+    ctx.beginPath(); ctx.moveTo(px,top); ctx.lineTo(px,bottom); ctx.stroke();
+    // label sits in the padding band ABOVE the plot area so bars can't cover it
+    ctx.fillStyle=l.c; ctx.font="11px sans-serif"; ctx.textBaseline="bottom";
+    ctx.fillText(l.label||"", px+4, top-4);
+    ctx.restore();
+  });
+}};
+function rollup(){
+  const dim = document.getElementById("dim").value;
+  const metric = document.getElementById("dimMetric").value;
+  const g = {};
+  SRC().forEach(d=>{
+    const m=M(d); if(m.spend===0) return;
+    const k = d[dim] || "—";
+    if(!g[k]) g[k]={spend:0,value:0,purch:0,impr:0,plays:0,n:0};
+    g[k].spend+=m.spend; g[k].value+=m.value; g[k].purch+=m.purch;
+    g[k].impr+=m.impr; g[k].plays+=(m.plays||0); g[k].n++;
+  });
+  const arr = Object.entries(g).map(([k,v])=>({k, ...v,
+    roas: v.spend? v.value/v.spend : null,
+    cpa: v.purch? v.spend/v.purch : null}))
+    .filter(v=>v.spend>=100);
+  arr.sort((a,b)=>{const av=a[dimSortK], bv=b[dimSortK];
+    if(av==null) return 1; if(bv==null) return -1;
+    return (typeof av==="string" ? av.localeCompare(bv) : av-bv)*dimSortDir;});
+  document.querySelector("#dimTbl tbody").innerHTML = arr.map(v=>`<tr>
+    <td class="lft">${v.k}</td><td>${fmt$(v.spend)}</td><td>${roasPill(v.roas)}</td>
+    <td>${fmt$(v.cpa)}</td><td>${v.purch}</td><td>${fmt$(v.value)}</td><td>${v.n}</td></tr>`).join("");
+  document.querySelectorAll("#dimTbl th").forEach(th=>th.classList.toggle("sorted", th.dataset.k===dimSortK));
+  if(window.Chart){
+    if(dimChart) dimChart.destroy();
+    // Chart: efficiency metric, best first; label carries spend for scale context
+    const asc = metric==="cpa";
+    const arr2 = arr.slice().filter(v=>v[metric]!=null)
+      .sort((a,b)=>(a[metric]-b[metric])*(asc?1:-1));
+    const lines = metric==="roas" ? [{v:1.0,c:"#5b6270",label:"breakeven"},{v:TGT,c:"#34d399",label:"target "+TGT.toFixed(1)}] : [];
+    const spendK = v => v.spend>=1000? "$"+Math.round(v.spend/1000)+"k" : "$"+Math.round(v.spend);
+    dimChart = new Chart(document.getElementById("dimChart"), {
+      type:"bar",
+      data:{labels:arr2.map(v=>(v.k.length>26?v.k.slice(0,26)+"…":v.k)+" · "+spendK(v)),
+        datasets:[{data:arr2.map(v=>v[metric]), backgroundColor:arr2.map(v=>roasColor(v.roas)), borderRadius:4}]},
+      plugins:[vLines],
+      options:{indexAxis:"y", maintainAspectRatio:false, layout:{padding:{top:16}},
+        plugins:{legend:{display:false}, vLines:{lines},
+        tooltip:{callbacks:{label:c=>{const v=arr2[c.dataIndex];return ` ROAS ${v.roas==null?"n/a":v.roas.toFixed(2)} · CPA ${fmt$(v.cpa)} · ${fmt$(v.spend)} spend · ${v.purch} purch`;}}}},
+        scales:{x:{ticks:{callback:v=> metric==="roas"? v : "$"+(v>=1000? (v/1000)+"k" : Math.round(v))},
+          title:{display:true,text: metric==="roas"?"ROAS — bar labels show spend for scale context": metric==="cpa"?"CPA (lower is better)": metric==="spend"?"Spend":"Revenue"}},
+          y:{ticks:{font:{size:11}}}}}
+    });
+  }
+}
+document.getElementById("dim").addEventListener("change", rollup);
+document.getElementById("dimMetric").addEventListener("change", rollup);
+document.querySelectorAll("#dimTbl th").forEach(th=>th.onclick=()=>{
+  if(dimSortK===th.dataset.k) dimSortDir*=-1;
+  else {dimSortK=th.dataset.k; dimSortDir = th.dataset.k==="k" ? 1 : -1;}
+  rollup();});
+
+// ---- Charts (mode-aware) ----
+let barChart=null, scChart=null;
+const medianLine = {id:"medianLine", afterDraw(chart, args, opts){
+  if(!opts || !opts.x) return;
+  const {ctx, chartArea:{top,bottom}, scales:{x}} = chart;
+  const px = x.getPixelForValue(opts.x);
+  ctx.save(); ctx.strokeStyle="#5b6270"; ctx.setLineDash([5,4]);
+  ctx.beginPath(); ctx.moveTo(px,top); ctx.lineTo(px,bottom); ctx.stroke(); ctx.restore();
+}};
+function renderCharts(){
+  if(!window.Chart) return;
+  Chart.defaults.color = "#9aa3b2"; Chart.defaults.borderColor = "#2a2f3a";
+  const act = SRC().filter(d=>M(d).spend>0);
+  const top12 = act.slice().sort((a,b)=>M(b).spend-M(a).spend).slice(0,12);
+  if(barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById("barChart"), {
+    type:"bar",
+    data:{labels:top12.map(d=>d.name.length>26?d.name.slice(0,26)+"…":d.name),
+      datasets:[{data:top12.map(d=>M(d).spend), backgroundColor:top12.map(d=>roasColor(mroas(d))), borderRadius:4}]},
+    options:{indexAxis:"y", maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>{const d=top12[c.dataIndex];return ` ${fmt$(M(d).spend)} · ROAS ${mroas(d)==null?"n/a":mroas(d).toFixed(2)} · ${M(d).purch} purch`;}}}},
+      scales:{x:{ticks:{callback:v=>"$"+(v/1000)+"k"}}, y:{ticks:{font:{size:11}}}}}
+  });
+  const sc = act.filter(d=>M(d).spend>=100);
+  const spends = sc.map(d=>M(d).spend).sort((a,b)=>a-b);
+  const medSpend = spends.length? spends[Math.floor(spends.length/2)] : 0;
+  if(scChart) scChart.destroy();
+  scChart = new Chart(document.getElementById("scatterChart"), {
+    type:"bubble",
+    data:{datasets:[{data:sc.map(d=>({x:M(d).spend, y:mroas(d)==null?0:mroas(d), r:Math.max(4,Math.sqrt(M(d).purch)*3), n:d.name, p:M(d).purch})),
+      backgroundColor:sc.map(d=>roasColor(mroas(d))+"B3")}]},
+    plugins:[medianLine],
+    options:{maintainAspectRatio:false, plugins:{legend:{display:false}, medianLine:{x:medSpend},
+      tooltip:{callbacks:{label:c=>{const d=c.raw;return ` ${d.n}: ${fmt$(d.x)} · ROAS ${d.y.toFixed(2)} · ${d.p} purch`;}}}},
+      scales:{x:{type:"logarithmic", title:{display:true,text:"Spend (log) — right of dashed line = above-median spend"},
+        ticks:{callback:v=>[100,500,1000,5000,10000,30000,80000].includes(v)?"$"+(v>=1000?v/1000+"k":v):null}},
+        y:{title:{display:true,text:"ROAS"}, grid:{color:ctx=>ctx.tick.value===1?"#4b5563":"#2a2f3a"}}}}
+  });
+}
+
+// ---- Table ----
+const ALLROWS = DATA.concat(...Object.values(ADS));
+const uniq = key => [...new Set(ALLROWS.map(d=>d[key]).filter(v=>v!=null&&v!==""&&v!=="—"))].sort();
+makeMulti("fFam","Concept",uniq("familyLabel"),()=>render());
+makeMulti("fActor","Actor",uniq("actor"),()=>render());
+makeMulti("fStyle","Style",uniq("style"),()=>render());
+makeMulti("fTalent","Talent",uniq("talent"),()=>render());
+makeMulti("fHook","Hook",uniq("hookCode"),()=>render());
+makeMulti("fVerdict","Verdict",uniq("verdict"),()=>render());
+makeMulti("fAdset","Ad set",uniq("adset"),()=>render());
+
+let sortK="spend", sortDir=-1;
+function render(){
+  const q=document.getElementById("search").value.toLowerCase();
+  const op=document.getElementById("onlyPurch").checked;
+  let rows=SRC().filter(d=>{
+    const m=M(d);
+    if(m.spend===0) return false;
+    return d.name.toLowerCase().includes(q) && (!op||m.purch>0)
+      && mpass("fFam",d.familyLabel) && mpass("fStyle",d.style) && mpass("fTalent",d.talent)
+      && mpass("fHook",d.hookCode) && mpass("fActor",d.actor) && mpass("fVerdict",d.verdict)
+      && (!isAd() || mpass("fAdset",d.adset));});
+  const sortVal = d => {
+    if(sortK==="spend") return M(d).spend;
+    if(sortK==="roas") return mroas(d);
+    if(sortK==="cpa") return mcpa(d);
+    if(sortK==="purchases") return M(d).purch;
+    if(sortK==="value") return M(d).value;
+    return d[sortK];
+  };
+  rows.sort((a,b)=>{const av=sortVal(a), bv=sortVal(b);
+    if(av==null) return 1; if(bv==null) return -1;
+    return (typeof av==="string" ? av.localeCompare(bv) : av-bv)*sortDir;});
+
+  const s={spend:0,value:0,purch:0,impr:0,plays:0,clicks:0};
+  rows.forEach(d=>{const m=M(d); s.spend+=m.spend;s.value+=m.value;s.purch+=m.purch;s.impr+=m.impr;s.plays+=(m.plays||0);s.clicks+=(m.clicks||0);});
+  const activeFilters=[mdesc("fFam"), mdesc("fActor"), mdesc("fStyle"), mdesc("fTalent"),
+    mdesc("fHook"), mdesc("fVerdict"), isAd()&&mdesc("fAdset"), op&&"Has purchases", q&&("Name: \""+q+"\"")].filter(Boolean);
+  document.getElementById("selKpis").innerHTML =
+    `<div class="cap">${MODE_CAP[MODE]}${activeFilters.length? "Filtered — "+activeFilters.join(" · ") : "no filters"}</div>`+
+    [["Ads", rows.length],
+     ["Spend", fmt$(s.spend)],
+     ["Revenue", fmt$(s.value)],
+     ["ROAS", s.spend? (s.value/s.spend).toFixed(2) : "—"],
+     ["CPA", s.purch? fmt$(s.spend/s.purch) : "—"],
+     ["Purchases", s.purch],
+    ].map(([l,v])=>`<div class="sk"><div class="l">${l}</div><div class="v">${v}</div></div>`).join("");
+
+  // Column set depends on the window: all-time rows carry history (ran/days/trend),
+  // recent rows carry current-window delivery (CTR/impressions/ad set).
+  const headCells = isAd()
+    ? [["name","Ad"],["style","Strategy"],["verdictRank","Verdict"],["spend","Spend"],
+       ["roas","ROAS"],["cpa","CPA"],["purchases","Purch"],["value","Revenue"],
+       ["impressions","Impr"],["ctr","CTR"],["firstSpend","First spend"],["daysActive","Days w/ spend"],["adset","Ad set"]]
+    : [["name","Ad"],["familyLabel","Concept"],["style","Strategy"],["verdictRank","Verdict"],["spend","Spend"],
+       ["roas","ROAS"],["cpa","CPA"],["purchases","Purch"],["value","Revenue"],
+       ["firstMonth","Ran"],["daysActive","Days"],["trendRank","Monthly trend"]];
+  document.querySelector("#tbl thead").innerHTML = "<tr>"+headCells
+    .map(([k,l])=>`<th data-k="${k}"${k===sortK?' class="sorted"':''}>${l}</th>`).join("")+"</tr>";
+  document.querySelectorAll("#tbl th").forEach(th=>th.onclick=()=>{
+    if(sortK===th.dataset.k) sortDir*=-1;
+    else {sortK=th.dataset.k; sortDir=["name","familyLabel","style","firstMonth","verdictRank","launch","adset"].includes(th.dataset.k)?1:-1;}
+    render();});
+
+  TIPROWS = [];
+  // Hover preview works whenever we have a thumbnail (all windows are ad rows);
+  // the name is only a link when a facebook.com permalink actually resolved.
+  const nameCell = d => {
+    if(!d.thumb && !d.permalink) return d.name;
+    const idx = TIPROWS.push(d)-1;
+    return d.permalink
+      ? `<a class="vname" data-idx="${idx}" href="${d.permalink}" target="_blank" rel="noopener">${d.name}</a>`
+      : `<span class="vname" data-idx="${idx}">${d.name}</span>`;
+  };
+  document.querySelector("#tbl tbody").innerHTML = rows.map(d=>{
+    const m = M(d);
+    if(isAd()){
+      return `<tr>
+      <td class="name" title="${d.fullName}">${nameCell(d)}</td>
+      <td class="lft">${tags(d)}</td>
+      <td class="lft">${vPill(d)}</td>
+      <td>${fmt$(m.spend)}</td><td>${roasPill(mroas(d))}</td><td>${fmt$(mcpa(d))}</td>
+      <td>${m.purch}</td><td>${fmt$(m.value)}</td>
+      <td>${fmtN(m.impr)}</td><td>${fmtP(d.ctr)}</td>
+      <td class="lft" style="font-size:12px;color:var(--muted)" title="First day this ad ever recorded spend">${d.firstSpend||"—"}</td>
+      <td title="Distinct days with spend inside this window (lifetime: ${d.daysTotal}d)">${d.daysActive}d${d.daysTotal>d.daysActive?` <span style="color:var(--muted);font-size:11px">/ ${d.daysTotal}</span>`:""}</td>
+      <td class="lft" style="font-size:12px;color:var(--muted)">${d.adset||"—"}</td></tr>`;
+    }
+    return `<tr>
+    <td class="name" title="${d.name}">${nameCell(d)}</td>
+    <td class="lft">${d.familyLabel}</td>
+    <td class="lft">${tags(d)}</td>
+    <td class="lft">${vPill(d)}</td>
+    <td>${fmt$(m.spend)}</td><td>${roasPill(mroas(d))}</td><td>${fmt$(mcpa(d))}</td>
+    <td>${m.purch}</td><td>${fmt$(m.value)}</td>
+    <td class="lft" style="font-size:12px;color:var(--muted)">${ranTxt(d)}</td>
+    <td>${d.daysActive}d</td>
+    <td class="lft">${spark(d)}${trendIcon(d)}</td></tr>`;}).join("");
+  bindTips();
+}
+["search","onlyPurch"].forEach(id=>document.getElementById(id).addEventListener("input",render));
+
+// ---- Mode toggle ----
+function setMode(m){
+  MODE=m;
+  if(sortK==="daysActive"||sortK==="trendRank"||sortK==="firstMonth"||sortK==="hook"){ sortK="spend"; sortDir=-1; }
+  document.getElementById("mAll").classList.toggle("on", m==="all");
+  document.getElementById("mL90").classList.toggle("on", m==="l90");
+  document.getElementById("mL10").classList.toggle("on", m==="l10");
+  document.getElementById("modeNote").textContent = m==="all"
+    ? "Ad-level lifetime history (Nov 2024 → today). Reconciles with Ads Manager."
+    : m==="l90" ? `Ad-level, ${META.l90Since} → ${META.l90Until}. Reconciles with Ads Manager.`
+    : `Ad-level, ${META.l10Since} → ${META.l10Until} (10 full days, excludes today). Reconciles with Ads Manager. Small window — treat ROAS as directional.`;
+  renderKpis(); rollup(); renderCharts(); render();
+}
+document.getElementById("mAll").onclick=()=>setMode("all");
+document.getElementById("mL90").onclick=()=>setMode("l90");
+document.getElementById("mL10").onclick=()=>setMode("l10");
+
+// ---- Target ROAS control ----
+const tgtInput = document.getElementById("tgt");
+tgtInput.value = TGT.toFixed(1);
+tgtInput.addEventListener("change", ()=>{
+  let v = parseFloat(tgtInput.value);
+  if(!v || v<0.5) v=0.5; if(v>5) v=5;
+  TGT=v; tgtInput.value=v.toFixed(1);
+  try{ localStorage.setItem("oe_tgt", String(v)); }catch(e){}
+  applyVerdicts(); renderKpis(); renderCallouts(); rollup(); renderCharts(); render();
+});
+
+// ---- Hover creative preview tooltip ----
+// TIPROWS is rebuilt on every table render and holds whichever rows (all-time or
+// recent-window ads) currently carry a preview. The "▶ Play (popup)" button only
+// renders when a facebook.com permalink resolved for that ad — thumbnail-only otherwise.
+let TIPROWS = [];
+const vtip = document.getElementById("vtip");
+let tipTimer=null, tipIdx=null;
+function showTip(el){
+  const d = TIPROWS[+el.dataset.idx];
+  if(!d || !d.thumb) return;
+  tipIdx = +el.dataset.idx;
+  const ran = d.firstMonth ? ranTxt(d)+` (${d.daysActive}d)` : (d.firstSpend ? "since "+d.firstSpend : "");
+  const btns = d.permalink
+    ? `<div class="t-btns">
+      <button class="play" onclick="playTip(${tipIdx})">▶ Play (popup)</button>
+      <a href="${d.permalink}" target="_blank" rel="noopener">Open in tab ↗</a>
+    </div>` : "";
+  vtip.innerHTML = `<img src="${d.thumb}" alt="">
+    <div class="t-name">${d.name}</div>
+    <div class="t-meta">${d.len?Math.round(d.len)+"s · ":""}${d.kind?d.kind+" · ":""}${d.familyLabel} · ${d.style}/${d.talent} · ${d.aspect}${ran?" · ran "+ran:""}</div>
+    ${btns}`;
+  const r = el.getBoundingClientRect();
+  vtip.style.display = "block";
+  const th = vtip.offsetHeight || 260;
+  vtip.style.left = Math.min(r.right + 12, window.innerWidth - 320) + "px";
+  vtip.style.top = Math.max(8, Math.min(r.top - 40, window.innerHeight - th - 12)) + "px";
+}
+function playTip(idx){
+  const d = TIPROWS[idx];
+  if(!d || !d.permalink) return;
+  const w = 480, h = 620;
+  const x = Math.round((screen.width - w)/2), y = Math.round((screen.height - h)/2);
+  window.open(d.permalink, "fbvid",
+    `width=${w},height=${h},left=${x},top=${y},menubar=no,toolbar=no,location=no,status=no`);
+}
+function hideTipSoon(){ tipTimer = setTimeout(()=>{ vtip.style.display="none"; }, 250); }
+function bindTips(){
+  document.querySelectorAll(".vname").forEach(el=>{
+    el.addEventListener("mouseenter", ()=>{ clearTimeout(tipTimer); showTip(el); });
+    el.addEventListener("mouseleave", hideTipSoon);
+  });
+}
+vtip.addEventListener("mouseenter", ()=>clearTimeout(tipTimer));
+vtip.addEventListener("mouseleave", hideTipSoon);
+
+renderKpis(); renderCallouts(); rollup(); renderCharts(); render();
+</script>
+</body>
+</html>
