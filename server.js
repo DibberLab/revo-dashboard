@@ -11,95 +11,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
-const AUTH_SECRET = process.env.SESSION_SECRET || 'change-me';
-
-function makeToken(email) {
-  return crypto.createHmac('sha256', AUTH_SECRET).update(email.toLowerCase()).digest('hex');
-}
-
-function getCookies(req) {
-  return (req.headers.cookie || '').split(';').reduce((acc, c) => {
-    const [k, ...v] = c.trim().split('=');
-    if (k) acc[k] = decodeURIComponent(v.join('='));
-    return acc;
-  }, {});
-}
-
-function isAuthed(req) {
-  const cookies = getCookies(req);
-  const email = cookies['auth_email'] || '';
-  if (!email.toLowerCase().endsWith('@revobrands.com')) return false;
-  return cookies['auth_token'] === makeToken(email);
-}
-
-const LOGIN_PAGE = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login — Revo Dashboard</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0a0a0a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .card { background: #161616; border: 1px solid #252525; border-radius: 14px; padding: 40px 36px; width: 360px; max-width: calc(100vw - 32px); }
-    .logo { font-size: 20px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; margin-bottom: 4px; }
-    .logo span { color: #28a06e; }
-    .subtitle { color: #555; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 32px; }
-    label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #666; margin-bottom: 6px; }
-    input[type=email] { display: block; width: 100%; background: #0d0d0d; border: 1px solid #252525; border-radius: 7px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; margin-bottom: 16px; outline: none; transition: border-color .15s; }
-    input:focus { border-color: #28a06e; }
-    button { width: 100%; background: #28a06e; border: none; border-radius: 7px; padding: 11px; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.05em; transition: background .15s; margin-top: 4px; }
-    button:hover { background: #1f8a5e; }
-    .err { color: #e74c3c; font-size: 13px; margin-bottom: 16px; display: none; }
-    .err.show { display: block; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="logo">Revo<span>Brands</span></div>
-    <div class="subtitle">Analytics Dashboard</div>
-    <div class="err" id="err">A Revo Brands email address is required.</div>
-    <form method="POST" action="/login">
-      <label for="e">Email</label>
-      <input type="email" id="e" name="email" autocomplete="email" placeholder="you@revobrands.com" required autofocus>
-      <button type="submit">Sign In</button>
-    </form>
-  </div>
-  <script>if (new URLSearchParams(location.search).get('error')) document.getElementById('err').classList.add('show');</script>
-</body>
-</html>`;
-
-app.get('/login', (req, res) => {
-  if (isAuthed(req)) return res.redirect('/');
-  res.setHeader('Content-Type', 'text/html');
-  res.send(LOGIN_PAGE);
-});
-
-app.post('/login', (req, res) => {
-  const email = (req.body?.email || '').trim().toLowerCase();
-  if (email.endsWith('@revobrands.com')) {
-    const token = makeToken(email);
-    res.setHeader('Set-Cookie', [
-      `auth_email=${encodeURIComponent(email)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`,
-      `auth_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`,
-    ]);
-    res.redirect('/');
-  } else {
-    res.redirect('/login?error=1');
-  }
-});
-
-app.get('/logout', (req, res) => {
-  res.setHeader('Set-Cookie', 'auth_token=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
-  res.redirect('/login');
-});
-
-function requireAuth(req, res, next) {
-  if (isAuthed(req)) return next();
-  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Unauthorized' });
-  res.redirect('/login');
-}
-app.use(requireAuth);
+// No app-level login: authentication is handled upstream by Cloudflare Access
+// (Zero Trust) on *.revo-apps.dev. The app itself only listens on localhost
+// behind nginx. Old /login and /logout routes redirect home so stale bookmarks
+// and cached links don't 404.
+app.get(['/login', '/logout'], (req, res) => res.redirect('/'));
 
 app.use(express.static(path.join(__dirname, 'public')));
 
